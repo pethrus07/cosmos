@@ -47,6 +47,49 @@
   montarColecao();
   setInterval(recarregarColecao, 30 * 60 * 1000);
 
+  // ---------- música no ar: o Lively manda o espectro do som (--audio) ~60 vezes por segundo
+  // grave/médio/volume suavizados; "batida" vai a 1 num pico de grave e decai a cada quadro
+  const audio = { grave: 0, medio: 0, volume: 0, batida: 0, mediaGrave: 0, ultimaBatida: 0, ultimo: 0 };
+  window.cosmosAudio = audio;
+  window.livelyAudioListener = (espectro) => {
+    if (!espectro || !espectro.length) return;
+    const media = (a, b) => { let t = 0; for (let i = a; i < b; i++) t += espectro[i] || 0; return t / (b - a); };
+    const g = media(0, 6), m = media(6, 40), v = media(0, espectro.length), agora = performance.now();
+    audio.grave += (g - audio.grave) * 0.35;
+    audio.medio += (m - audio.medio) * 0.35;
+    audio.volume += (v - audio.volume) * 0.25;
+    audio.mediaGrave = audio.mediaGrave * 0.97 + g * 0.03;
+    if (g > audio.mediaGrave * 1.45 && g > 0.15 && agora - audio.ultimaBatida > 250) { audio.batida = 1; audio.ultimaBatida = agora; }
+    audio.ultimo = agora;
+  };
+  function amortecerAudio(agora) {
+    audio.batida *= 0.88;
+    if (agora - audio.ultimo > 1500) { audio.grave *= 0.9; audio.medio *= 0.9; audio.volume *= 0.9; } // silêncio: volta ao calmo
+    document.body.style.setProperty("--batida", audio.batida.toFixed(3));
+    pulso.style.opacity = Math.min(0.9, audio.grave * 0.9 + audio.batida * 0.25).toFixed(3);
+    fundo.style.transform = `scale(${(1 + audio.grave * 0.025).toFixed(4)})`;
+  }
+
+  // ---------- hora do dia: cada fase prefere paletas, tinge o céu e muda o ritmo
+  const FASES = {
+    madrugada: { paletas: [3, 0, 1], densidade: 0.7, cena: [480000, 720000] },
+    manha: { paletas: [1, 3, 0], densidade: 1, cena: [240000, 420000] },
+    tarde: { paletas: [4, 2, 0], densidade: 1, cena: [240000, 420000] },
+    noite: { paletas: [0, 2, 1], densidade: 1, cena: [240000, 420000] },
+  };
+  const nomeDaFase = (h = new Date().getHours()) => (h < 6 ? "madrugada" : h < 12 ? "manha" : h < 18 ? "tarde" : "noite");
+  let fase = FASES[nomeDaFase()];
+  const tom = document.getElementById("tom"), pulso = document.getElementById("pulso");
+  function acompanharHora() {
+    const nome = (location.hash.match(/fase-(\w+)/) || [])[1] || nomeDaFase();
+    if (tom.dataset.fase !== nome) {
+      const trocou = Boolean(tom.dataset.fase);
+      tom.dataset.fase = nome;
+      fase = FASES[nome] || FASES.noite;
+      if (trocou && !pausado) montarCena(); // virou a fase: o céu já acompanha
+    }
+  }
+
   // ---------- espaço
   const ceu = document.getElementById("estrelas");
   const ctx = ceu.getContext("2d");
@@ -312,8 +355,9 @@
       cena.appendChild(el);
     };
     const semente = Math.floor(Math.random() * 1e6);
-    const a = Math.floor(Math.random() * PALETAS.length);
-    const b = (a + 1 + Math.floor(Math.random() * (PALETAS.length - 1))) % PALETAS.length; // duas paletas diferentes
+    const preferidas = fase.paletas;
+    const a = Math.random() < 0.6 ? preferidas[0] : sortear(preferidas);
+    const b = sortear(preferidas.filter((i) => i !== a)); // duas paletas diferentes, as da fase do dia
     camada("nebulosa-a", pintarNebulosa(semente, PALETAS[a]));
     camada("nebulosa-b", pintarNebulosa(semente + 101, PALETAS[b]));
     camada("distantes", pintarDistantes(D));
@@ -334,7 +378,7 @@
 
   function trocarCena() {
     if (!pausado) montarCena();
-    setTimeout(trocarCena, aleatorio(240000, 420000));
+    setTimeout(trocarCena, aleatorio(...fase.cena));
   }
 
   function renovarBrilhos() {
@@ -391,12 +435,12 @@
     const w = ceu.width, h = ceu.height, cx = w / 2, cy = h / 2, f = Math.max(w, h) * 0.5;
     ctx.clearRect(0, 0, w, h);
     for (const e of estrelas) {
-      e.z -= VELOCIDADE * dt;
+      e.z -= VELOCIDADE * (1 + audio.volume * 3.5 + audio.batida * 1.5) * dt;
       const sx = cx + (e.x / e.z) * f, sy = cy + (e.y / e.z) * f;
       if (e.z < 0.05 || sx < -20 || sx > w + 20 || sy < -20 || sy > h + 20) { Object.assign(e, novaEstrela(1)); continue; }
       const perto = 1 - e.z;
-      const raio = (0.3 + perto * perto * 2.4) * escala;
-      ctx.fillStyle = `rgba(${e.cor},${Math.min(1, perto * 1.5) * e.brilho})`;
+      const raio = (0.3 + perto * perto * 2.4) * escala * (1 + audio.batida * 0.35);
+      ctx.fillStyle = `rgba(${e.cor},${Math.min(1, perto * 1.5 * (1 + audio.grave * 0.8)) * e.brilho})`;
       ctx.beginPath();
       ctx.arc(sx, sy, raio, 0, Math.PI * 2);
       ctx.fill();
@@ -523,7 +567,7 @@
 
   function posicionar(o, agora) {
     const t = (agora - o.desde) / 1000;
-    o.el.style.transform = `translate3d(${o.x - o.tam / 2}px, ${o.y - o.alto / 2}px, 0) scale(${o.esc})`;
+    o.el.style.transform = `translate3d(${o.x - o.tam / 2}px, ${o.y - o.alto / 2}px, 0) scale(${o.esc * (1 + audio.batida * 0.035)})`;
     const b = o.bal, onda = Math.sin(t * b.freq * 6.283 + b.fase) * b.amp;
     const ry = o.inc.ry + (o.giro ? t * o.giro : Math.cos(t * b.freq * 5.1 + b.fase) * b.amp);
     o.balanco.style.transform = `rotateX(${o.inc.rx + onda}deg) rotateY(${ry}deg) rotateZ(${o.inc.rz + onda * 0.3}deg)`;
@@ -556,7 +600,7 @@
   }
 
   // capas soltas: poucas (≈5 por altura de tela de largura) e de tamanhos variados pela profundidade
-  const quantas = () => Math.max(5, Math.round(5.2 * (W / H)));
+  const quantas = () => Math.max(4, Math.round(5.2 * (W / H) * fase.densidade));
   function semear() {
     if (!pausado) {
       const fixos = [...objetos].filter((o) => o.tipo === "fixo" && !o.saindo);
@@ -668,6 +712,7 @@
     if (agora - ultimo < 1000 / 30) return;
     const dt = Math.min(0.1, (agora - ultimo) / 1000 || 0);
     ultimo = agora;
+    amortecerAudio(agora);
     desenharCeu(agora, dt);
     moverObjetos(agora, dt);
   }
@@ -761,8 +806,10 @@
   }
   let redim = 0;
   addEventListener("resize", () => { clearTimeout(redim); redim = setTimeout(montarTudo, 300); });
+  acompanharHora();
   montarTudo();
   laco = requestAnimationFrame(quadro);
+  setInterval(acompanharHora, 60000);
   semear();
   setTimeout(passar, aleatorio(4000, 9000));
   setTimeout(trocarCena, aleatorio(240000, 420000));

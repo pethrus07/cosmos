@@ -90,6 +90,46 @@ body.pausado .camada, body.pausado .astro, body.pausado .astro .corpo, body.paus
 .fourier { transition-duration: 4s; }
 body.pausado .formula { animation-play-state: paused; }
 
+/* versos: tipografia de livro, palavra por palavra */
+#versos { position: absolute; inset: 0; pointer-events: none; z-index: 1; }
+.verso { position: absolute; margin: 0; max-width: 34vw; }
+.verso blockquote {
+  margin: 0;
+  font: italic 400 1em/1.55 "Cormorant Garamond", "Garamond", "Georgia", serif;
+  color: rgba(238, 234, 248, .78);
+  text-shadow: 0 0 18px rgba(0, 0, 0, .9), 0 0 30px rgba(106, 40, 201, .35);
+}
+.verso figcaption {
+  margin-top: .9em;
+  font: 500 max(9px, .5em)/1 "JetBrains Mono", ui-monospace, monospace;
+  letter-spacing: .28em;
+  text-transform: uppercase;
+  color: rgba(255, 183, 0, .7);
+}
+.verso span, .verso figcaption { opacity: 0; transition: opacity 1.6s ease-out calc(var(--n) * .45s); }
+.verso.escrito span, .verso.escrito figcaption { opacity: 1; }
+.verso.apagando { opacity: 0; transition: opacity 6s ease-in-out; }
+
+/* música no ar: o céu respira no grave (escala do fundo e um clarão suave no centro) */
+#fundo { transform-origin: 50% 50%; will-change: transform; }
+#pulso {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  mix-blend-mode: screen;
+  background: radial-gradient(ellipse at 50% 50%, rgba(139, 92, 246, .22) 0%, rgba(255, 183, 0, .06) 35%, transparent 70%);
+}
+.brilho-vida { transform: scale(calc(1 + var(--batida, 0) * .4)); }
+
+/* hora do dia: um tom por cima do céu, trocado devagar */
+#tom { position: absolute; inset: 0; pointer-events: none; transition: background-color 90s ease-in-out, opacity 90s ease-in-out; mix-blend-mode: soft-light; opacity: 0; }
+#tom[data-fase="manha"] { background-color: rgb(120, 170, 255); opacity: .14; }
+#tom[data-fase="tarde"] { background-color: rgb(255, 183, 0); opacity: .12; }
+#tom[data-fase="madrugada"] { background-color: rgb(0, 0, 8); opacity: .45; mix-blend-mode: multiply; }
+#tom[data-fase="noite"] { opacity: 0; }
+#constelacoes { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+
 /* objetos soltos no espaço: capas e o símbolo da RYZE.
    .objeto = posição (muda a cada quadro) · .balanco = inclinação e balanço · .carta = entrada/saída */
 #espaco { position: absolute; inset: 0; pointer-events: none; z-index: 0; }

@@ -134,7 +134,8 @@
   function desenharAtrator(dt) {
     const a = atrator;
     if (!a) return;
-    for (let i = 0; i < 4; i++) { a.p = rk4(a.tipo, a.p); a.rastro.push(a.p); }
+    const passos = 4 + Math.round((window.cosmosAudio?.volume || 0) * 16); // a música acelera o caos
+    for (let i = 0; i < passos; i++) { a.p = rk4(a.tipo, a.p); a.rastro.push(a.p); }
     if (a.rastro.length > 2600) a.rastro.splice(0, a.rastro.length - 2600);
     a.giro += a.velGiro * dt;
     const { width: s } = a.cv, g = a.ctx, c = a.tipo.centro, e = a.tipo.escala * s * 0.5;
@@ -218,7 +219,7 @@
     const f = fourier;
     if (!f) return;
     const s = f.cv.width, g = f.ctx, e = (s * 0.8) / 520;
-    if (f.t < 1) f.t = Math.min(1, f.t + dt / f.dur);
+    if (f.t < 1) f.t = Math.min(1, f.t + (dt / f.dur) * (1 + (window.cosmosAudio?.volume || 0) * 1.5));
     else if (!f.fim) {
       f.fim = true;
       setTimeout(() => { f.cv.style.opacity = "0"; setTimeout(() => { f.cv.remove(); if (fourier === f) fourier = null; }, 6000); }, 7000);
