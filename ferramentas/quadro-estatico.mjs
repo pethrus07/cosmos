@@ -12,7 +12,7 @@ const require = createRequire(path.join(process.env.USERPROFILE, "Projetos", "he
 const { chromium } = require("playwright");
 
 const telas = [
-  { nome: "notebook", largura: 1728, altura: 1080, escala: 2 }, // 3456×2160
+  { nome: "notebook", largura: 1382, altura: 864, escala: 2.5 }, // 3456×2160 com a escala de 250% do Windows
   { nome: "monitor", largura: 2560, altura: 1080, escala: 1 },
 ];
 fs.mkdirSync(path.join(RAIZ, "quadros"), { recursive: true });
@@ -21,7 +21,7 @@ try {
   for (const t of telas) {
     const pg = await nav.newPage({ viewport: { width: t.largura, height: t.altura }, deviceScaleFactor: t.escala });
     await pg.goto(pathToFileURL(path.join(RAIZ, "index.html")).href);
-    await pg.waitForTimeout(4000); // fontes, capas e estrelas já em movimento
+    await pg.waitForTimeout(35000); // as capas entram aos poucos: espera a tela povoar
     const destino = path.join(RAIZ, "quadros", `${t.nome}.png`);
     await pg.screenshot({ path: destino });
     console.log(destino);

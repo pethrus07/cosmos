@@ -1,10 +1,11 @@
 // Cosmos: o papel de parede do Pedro no Lively Wallpaper.
 // Espaço escuro e infinito (nebulosa no roxo da RYZE, estrelas vindo na direção da tela, estrela cadente
-// dourada de vez em quando) com uma moldura de capas de álbum que viram uma de cada vez; numa das viradas
-// pode aparecer o símbolo da RYZE.
-// Música: o Lively chama livelyCurrentTrack (argumento --system-nowplaying) com a faixa que o Windows vê
-// tocando (Spotify incluso). A capa do álbum vira em destaque dourado e entra na coleção para sempre
-// (localStorage do Lively), em alta resolução quando o Deezer acha o álbum.
+// dourada) com capas de álbum soltas: poucas, pequenas e espalhadas, cada uma com inclinação, balanço,
+// entrada e saída próprias. O meio fica livre para o que passa: capas atravessando, capas vindo do fundo
+// na direção da tela e o símbolo da RYZE girando como moeda.
+// Coleção: capas/capas.js (mais ouvidos de sempre + recentes do Spotify, gerado por ferramentas/spotify.mjs;
+// sem Spotify, a base de albuns.json), relida a cada 30 min. Música tocando: o Lively chama
+// livelyCurrentTrack (--system-nowplaying); a capa aparece no centro com destaque dourado e entra na coleção.
 // Teste fora do Lively: index.html#teste (faixa da coleção) ou #teste-novo (faixa de fora).
 (() => {
   "use strict";
@@ -15,26 +16,36 @@
   const simples = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
     .replace(/\s*[([].*?[)\]]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
   const chaveDe = (artista, album) => `${simples(artista)}|${simples(album)}`;
-  const embaralhar = (lista) => {
-    const l = [...lista];
-    for (let i = l.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [l[i], l[j]] = [l[j], l[i]]; }
-    return l;
-  };
 
-  // ---------- coleção: base (capas/capas.js) + as que chegaram pela música tocando
+  // ---------- coleção: capas/capas.js + as que chegaram pela música tocando
   const GUARDADAS = "cosmos.capas-aprendidas";
   const lerGuardadas = () => { try { return JSON.parse(localStorage.getItem(GUARDADAS)) || []; } catch { return []; } };
   const gravarGuardadas = (l) => { try { localStorage.setItem(GUARDADAS, JSON.stringify(l.slice(-400))); } catch { /* sem armazenamento: vale só nesta sessão */ } };
 
-  const colecao = new Map();
-  const juntar = (artista, album, src) => {
+  let colecao = new Map();
+  const juntar = (mapa, artista, album, src) => {
     const chave = chaveDe(artista, album);
-    if (!colecao.has(chave)) colecao.set(chave, { chave, artista, album, src });
-    return colecao.get(chave);
+    if (!mapa.has(chave)) mapa.set(chave, { chave, artista, album, src });
+    return mapa.get(chave);
   };
-  for (const c of window.CAPAS || []) juntar(c.artista, c.album, c.arquivo);
-  for (const c of lerGuardadas()) juntar(c.artista, c.album, c.src);
-  const RYZE = { chave: "ryze", ryze: true };
+  // com Spotify conectado, giram só os mais ouvidos + recentes dele; sem, a base de albuns.json
+  function montarColecao() {
+    const nova = new Map();
+    const spotify = window.CAPAS_SPOTIFY || [];
+    for (const c of spotify.length ? spotify : window.CAPAS || []) juntar(nova, c.artista, c.album, c.arquivo);
+    for (const c of lerGuardadas()) juntar(nova, c.artista, c.album, c.src);
+    if (nova.size) colecao = nova;
+  }
+  // a tarefa do Spotify regrava capas/spotify.js de tempos em tempos: relê sem reiniciar o fundo
+  function recarregarColecao() {
+    const s = document.createElement("script");
+    s.src = `capas/spotify.js?t=${Date.now()}`;
+    s.onload = () => { montarColecao(); s.remove(); };
+    s.onerror = () => s.remove();
+    document.head.appendChild(s);
+  }
+  montarColecao();
+  setInterval(recarregarColecao, 30 * 60 * 1000);
 
   // ---------- espaço
   const ceu = document.getElementById("estrelas");
@@ -117,7 +128,7 @@
     ctx.clearRect(0, 0, w, h);
     for (const e of estrelas) {
       e.z -= VELOCIDADE * dt;
-      let sx = cx + (e.x / e.z) * f, sy = cy + (e.y / e.z) * f;
+      const sx = cx + (e.x / e.z) * f, sy = cy + (e.y / e.z) * f;
       if (e.z < 0.05 || sx < -20 || sx > w + 20 || sy < -20 || sy > h + 20) { Object.assign(e, novaEstrela(1)); continue; }
       const perto = 1 - e.z;
       const raio = (0.3 + perto * perto * 2.4) * escala;
@@ -150,6 +161,205 @@
     }
   }
 
+  // ---------- objetos soltos: capas e o símbolo da RYZE
+  const espaco = document.getElementById("espaco");
+  const painelTocando = document.getElementById("tocando");
+  const objetos = new Set();
+  const RYZE = { chave: "ryze", ryze: true };
+  const PROPORCAO_RYZE = 520 / 400; // altura / largura do símbolo
+
+  const ENTRADAS = [
+    { nome: "profundidade", dur: 2800, quadros: (op) => [{ opacity: 0, transform: "scale(.2)", filter: "blur(10px)" }, { opacity: op, transform: "scale(1)", filter: "blur(0px)" }] },
+    { nome: "giro-y", dur: 1900, quadros: (op) => [{ opacity: 0, transform: "rotateY(-110deg)" }, { opacity: op, transform: "rotateY(0deg)" }] },
+    { nome: "giro-x", dur: 1900, quadros: (op) => [{ opacity: 0, transform: "rotateX(100deg)" }, { opacity: op, transform: "rotateX(0deg)" }] },
+    { nome: "espiral", dur: 2400, quadros: (op) => [{ opacity: 0, transform: "rotate(-75deg) scale(.35)" }, { opacity: op, transform: "rotate(0deg) scale(1)" }] },
+    { nome: "deriva", dur: 3200, quadros: (op) => { const a = aleatorio(0, Math.PI * 2); return [{ opacity: 0, transform: `translate(${Math.cos(a) * 70}px, ${Math.sin(a) * 70}px)` }, { opacity: op, transform: "translate(0, 0)" }]; } },
+  ];
+  const SAIDAS = [
+    { dur: 3200, quadros: (op) => [{ opacity: op, transform: "scale(1)", filter: "blur(0px)" }, { opacity: 0, transform: "scale(.15)", filter: "blur(10px)" }] },
+    { dur: 1800, quadros: (op) => [{ opacity: op, transform: "rotateY(0deg)" }, { opacity: 0, transform: "rotateY(110deg)" }] },
+    { dur: 1800, quadros: (op) => [{ opacity: op, transform: "rotateX(0deg)" }, { opacity: 0, transform: "rotateX(-100deg)" }] },
+    { dur: 2600, quadros: (op) => [{ opacity: op }, { opacity: 0 }] },
+  ];
+  // a RYZE tem filtro de brilho próprio: entra e sai sem desfoque
+  const semDesfoque = (lista) => lista.filter((e) => !e.nome || e.nome !== "profundidade");
+
+  function criar({ item, x, y, tam, z, tipo }) {
+    const el = document.createElement("div");
+    el.className = "objeto";
+    const alto = item.ryze ? tam * PROPORCAO_RYZE : tam;
+    el.style.width = `${tam}px`;
+    el.style.height = `${alto}px`;
+    el.style.zIndex = tipo === "destaque" ? 1000 : Math.round(z * 100);
+    el.innerHTML = '<div class="balanco"><div class="carta"></div></div>';
+    const carta = el.querySelector(".carta");
+    if (item.ryze) carta.classList.add("ryze");
+    else carta.style.backgroundImage = `url("${item.src}")`;
+    espaco.appendChild(el);
+    const o = {
+      el, balanco: el.querySelector(".balanco"), carta, item, tipo, x, y, z, tam, alto, esc: 1,
+      vx: 0, vy: 0, desde: performance.now(), vida: aleatorio(28000, 55000), saindo: false,
+      op: tipo === "destaque" ? 1 : 0.5 + 0.5 * z,
+      inc: { rx: aleatorio(-14, 14), ry: aleatorio(-18, 18), rz: aleatorio(-9, 9) },
+      bal: { amp: aleatorio(3, 9), freq: aleatorio(0.04, 0.11), fase: aleatorio(0, 6.3) },
+      giro: item.ryze ? aleatorio(22, 38) * (Math.random() < 0.5 ? 1 : -1) : 0,
+    };
+    objetos.add(o);
+    posicionar(o, performance.now());
+    return o;
+  }
+
+  function entrar(o, entrada = sortear(o.item.ryze ? semDesfoque(ENTRADAS) : ENTRADAS)) {
+    o.carta.animate(entrada.quadros(o.op), { duration: entrada.dur, easing: "cubic-bezier(.2,.7,.2,1)", fill: "forwards" });
+  }
+
+  function sair(o) {
+    if (o.saindo) return;
+    o.saindo = true;
+    const s = sortear(o.item.ryze ? SAIDAS.slice(1) : SAIDAS);
+    const a = o.carta.animate(s.quadros(o.op), { duration: s.dur, easing: "cubic-bezier(.5,0,.75,.4)", fill: "forwards" });
+    a.onfinish = () => { o.el.remove(); objetos.delete(o); };
+  }
+
+  function posicionar(o, agora) {
+    const t = (agora - o.desde) / 1000;
+    o.el.style.transform = `translate3d(${o.x - o.tam / 2}px, ${o.y - o.alto / 2}px, 0) scale(${o.esc})`;
+    const b = o.bal, onda = Math.sin(t * b.freq * 6.283 + b.fase) * b.amp;
+    const ry = o.inc.ry + (o.giro ? t * o.giro : Math.cos(t * b.freq * 5.1 + b.fase) * b.amp);
+    o.balanco.style.transform = `rotateX(${o.inc.rx + onda}deg) rotateY(${ry}deg) rotateZ(${o.inc.rz + onda * 0.3}deg)`;
+  }
+
+  // onde fica cada coisa: o canto de cima à esquerda é dos ícones, o meio é dos que passam e do destaque
+  const naZonaDosIcones = (x, y, r) => x - r < 150 && y - r < H * 0.55;
+  const noMeio = (x, y) => ((x - W / 2) / (W * 0.21)) ** 2 + ((y - H * 0.5) / (H * 0.27)) ** 2 < 1;
+  function lugarLivre(tam) {
+    const m = H * 0.04, folga = H * 0.08;
+    for (let i = 0; i < 90; i++) {
+      const x = aleatorio(m + tam / 2, W - m - tam / 2), y = aleatorio(m + tam / 2, H - m - tam / 2);
+      if (naZonaDosIcones(x, y, tam / 2) || noMeio(x, y)) continue;
+      let ok = true;
+      for (const o of objetos) {
+        if (o.tipo !== "fixo") continue;
+        if (Math.hypot(o.x - x, o.y - y) < (o.tam * o.esc + tam) / 2 + folga) { ok = false; break; }
+      }
+      if (ok) return { x, y };
+    }
+    return null;
+  }
+
+  const visiveis = () => new Set([...objetos].filter((o) => !o.saindo).map((o) => o.item.chave));
+  function proximaCapa() {
+    const vis = visiveis();
+    const fora = [...colecao.values()].filter((i) => !vis.has(i.chave));
+    return sortear(fora.length ? fora : [...colecao.values()]);
+  }
+
+  // capas soltas: poucas (≈5 por altura de tela de largura) e de tamanhos variados pela profundidade
+  const quantas = () => Math.max(5, Math.round(5.2 * (W / H)));
+  function semear() {
+    if (!pausado) {
+      const fixos = [...objetos].filter((o) => o.tipo === "fixo" && !o.saindo);
+      if (fixos.length < quantas()) {
+        const z = aleatorio(0.3, 1);
+        const querRyze = !visiveis().has("ryze") && Math.random() < 0.08;
+        const item = querRyze ? RYZE : proximaCapa();
+        const tam = H * (querRyze ? 0.05 + 0.03 * z : 0.045 + 0.085 * z ** 1.5);
+        const lugar = item && lugarLivre(tam * (querRyze ? PROPORCAO_RYZE : 1));
+        if (lugar) {
+          const o = criar({ item, x: lugar.x, y: lugar.y, tam, z, tipo: "fixo" });
+          const ang = aleatorio(0, Math.PI * 2), v = 2 + 6 * z;
+          o.vx = Math.cos(ang) * v; o.vy = Math.sin(ang) * v;
+          entrar(o);
+        }
+      }
+    }
+    setTimeout(semear, aleatorio(1200, 3200));
+  }
+
+  // o que passa pelo meio: travessia de lado a lado, voo do fundo na direção da tela, e a RYZE girando
+  function passar() {
+    if (!pausado) {
+      const passando = [...objetos].filter((o) => o.tipo === "passante").length;
+      if (passando < 2) {
+        const sorte = Math.random();
+        if (sorte < 0.3 && !visiveis().has("ryze")) {
+          const tam = H * aleatorio(0.07, 0.1), daEsquerda = Math.random() < 0.5;
+          const o = criar({ item: RYZE, x: daEsquerda ? -tam : W + tam, y: H * aleatorio(0.32, 0.68), tam, z: 0.9, tipo: "passante" });
+          o.vx = (daEsquerda ? 1 : -1) * (W + 2 * tam) / aleatorio(55, 80); o.vy = aleatorio(-4, 4);
+          o.op = 1; o.carta.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 2500, fill: "forwards" });
+        } else if (sorte < 0.65) {
+          const item = proximaCapa();
+          if (item) {
+            const tam = H * aleatorio(0.08, 0.13), daEsquerda = Math.random() < 0.5;
+            const o = criar({ item, x: daEsquerda ? -tam : W + tam, y: H * aleatorio(0.3, 0.7), tam, z: aleatorio(0.6, 0.95), tipo: "passante" });
+            o.vx = (daEsquerda ? 1 : -1) * (W + 2 * tam) / aleatorio(60, 95); o.vy = aleatorio(-6, 6);
+            o.inc.rz = aleatorio(-20, 20); o.giro = aleatorio(4, 9) * (Math.random() < 0.5 ? 1 : -1);
+            o.carta.animate([{ opacity: 0 }, { opacity: o.op }], { duration: 2500, fill: "forwards" });
+          }
+        } else {
+          // voo: nasce pequena perto do centro e vem na direção da tela, se afastando do meio
+          const item = proximaCapa();
+          if (item) {
+            const tam = H * 0.14, ang = aleatorio(0, Math.PI * 2);
+            const o = criar({ item, x: W / 2 + Math.cos(ang) * W * 0.03, y: H / 2 + Math.sin(ang) * H * 0.03, tam, z: 0.95, tipo: "passante" });
+            o.voo = { ang, dur: aleatorio(22, 32) };
+            o.esc = 0.05;
+            o.carta.animate([{ opacity: 0 }, { opacity: 0.95, offset: 0.25 }, { opacity: 0.95, offset: 0.8 }, { opacity: 0 }], { duration: o.voo.dur * 1000, fill: "forwards" });
+          }
+        }
+      }
+    }
+    setTimeout(passar, aleatorio(14000, 32000));
+  }
+
+  // as soltas derivam, mas não se encostam nem saem da tela: repulsão suave entre elas, desvio perto da
+  // borda e do canto dos ícones, e velocidade de volta ao normal aos poucos
+  function afastar(dt) {
+    const fixos = [...objetos].filter((o) => o.tipo === "fixo");
+    const folga = H * 0.06, borda = H * 0.03;
+    for (let i = 0; i < fixos.length; i++) {
+      const a = fixos[i];
+      for (let j = i + 1; j < fixos.length; j++) {
+        const b = fixos[j];
+        const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 1;
+        const minimo = (a.tam + b.tam) / 2 + folga;
+        if (d < minimo) {
+          const f = ((minimo - d) / minimo) * 40 * dt;
+          a.vx -= (dx / d) * f; a.vy -= (dy / d) * f;
+          b.vx += (dx / d) * f; b.vy += (dy / d) * f;
+        }
+      }
+      const r = Math.max(a.tam, a.alto) / 2;
+      if (a.x - r < borda) a.vx += 30 * dt;
+      if (a.x + r > W - borda) a.vx -= 30 * dt;
+      if (a.y - r < borda) a.vy += 30 * dt;
+      if (a.y + r > H - borda) a.vy -= 30 * dt;
+      if (naZonaDosIcones(a.x, a.y, r)) { a.vx += 30 * dt; }
+      const v = Math.hypot(a.vx, a.vy), alvo = 2 + 6 * a.z;
+      if (v > alvo) { const k = 1 - Math.min(1, 0.5 * dt); a.vx *= k; a.vy *= k; }
+    }
+  }
+
+  function moverObjetos(agora, dt) {
+    afastar(dt);
+    for (const o of objetos) {
+      if (o.voo) {
+        const p = (agora - o.desde) / 1000 / o.voo.dur;
+        if (p >= 1) { o.el.remove(); objetos.delete(o); continue; }
+        // perspectiva: o tamanho cresce como 1/distância, e o afastamento do centro acompanha
+        const perto = 1 / (1 - 0.93 * p) - 1; // 0 → ~13
+        o.esc = Math.min(1.6, 0.05 + perto * 0.12);
+        o.x = W / 2 + Math.cos(o.voo.ang) * (W * 0.03 + perto * W * 0.05);
+        o.y = H / 2 + Math.sin(o.voo.ang) * (H * 0.03 + perto * H * 0.05);
+      } else {
+        o.x += o.vx * dt; o.y += o.vy * dt;
+      }
+      if (o.tipo === "fixo" && !o.saindo && agora - o.desde > o.vida) sair(o);
+      if (o.tipo === "passante" && !o.voo && (o.x < -o.tam * 2 || o.x > W + o.tam * 2)) { o.el.remove(); objetos.delete(o); continue; }
+      posicionar(o, agora);
+    }
+  }
+
   // 30 quadros por segundo bastam para movimento lento e gastam metade da GPU
   let ultimo = 0, laco = 0;
   function quadro(agora) {
@@ -158,86 +368,7 @@
     const dt = Math.min(0.1, (agora - ultimo) / 1000 || 0);
     ultimo = agora;
     desenharCeu(agora, dt);
-  }
-
-  // ---------- moldura de capas
-  const moldura = document.getElementById("moldura");
-  const painelTocando = document.getElementById("tocando");
-  let capas = []; // { el, frente, atras, verso, item, fixa, desde }
-
-  function pintar(face, item) {
-    face.classList.toggle("ryze", Boolean(item.ryze));
-    face.style.backgroundImage = item.ryze ? "" : `url("${item.src}")`;
-  }
-
-  const carregar = (item) => new Promise((ok) => {
-    if (item.ryze) return ok(true);
-    const img = new Image();
-    img.onload = () => ok(true);
-    img.onerror = () => ok(false);
-    img.src = item.src;
-  });
-
-  function montarMoldura() {
-    const anteriores = capas.map((c) => c.item);
-    moldura.textContent = "";
-    capas = [];
-    const m = Math.round(H * 0.014), g = Math.round(H * 0.011);
-    const s = Math.floor((H - 2 * m - 3 * g) / 4);
-    const cols = Math.max(4, Math.floor((W - 2 * m + g) / (s + g)));
-    const x0 = Math.round((W - (cols * s + (cols - 1) * g)) / 2);
-    const lugares = [];
-    for (let c = 0; c < cols; c++) lugares.push([c, 0]);
-    for (let r = 1; r <= 2; r++) lugares.push([cols - 1, r]);
-    for (let c = cols - 1; c >= 0; c--) lugares.push([c, 3]);
-    for (let r = 2; r >= 1; r--) lugares.push([0, r]);
-
-    const inicio = [...anteriores.filter((i) => !i.ryze), ...embaralhar([...colecao.values()])];
-    const usadas = new Set();
-    for (const [c, r] of lugares) {
-      const el = document.createElement("div");
-      el.className = "capa";
-      Object.assign(el.style, { left: `${x0 + c * (s + g)}px`, top: `${m + r * (s + g)}px`, width: `${s}px`, height: `${s}px` });
-      el.innerHTML = '<div class="giro"><div class="face frente"></div><div class="face atras"></div></div>';
-      const capa = { el, frente: el.querySelector(".frente"), atras: el.querySelector(".atras"), verso: false, item: null, fixa: false, desde: 0 };
-      const item = inicio.find((i) => !usadas.has(i.chave)) || sortear(inicio);
-      usadas.add(item.chave);
-      capa.item = item;
-      pintar(capa.frente, item);
-      moldura.appendChild(el);
-      capas.push(capa);
-    }
-    // o "tocando agora" fica no vão, logo acima da fileira de baixo (mesma conta das capas, de cima para baixo)
-    painelTocando.style.top = `${m + 3 * (s + g) - Math.round(s * 0.16)}px`;
-  }
-
-  const visiveis = () => new Set(capas.map((c) => c.item.chave));
-
-  async function virar(capa, item) {
-    if (!(await carregar(item))) return false;
-    pintar(capa.verso ? capa.frente : capa.atras, item);
-    capa.verso = !capa.verso;
-    capa.el.classList.toggle("verso", capa.verso);
-    capa.item = item;
-    capa.desde = performance.now();
-    return true;
-  }
-
-  // uma capa vira a cada 3,5 a 6,5 s; a RYZE aparece em ~1 de cada 10 viradas, nunca duas ao mesmo tempo
-  async function virarUma() {
-    if (!pausado && capas.length) {
-      const agora = performance.now();
-      const livres = capas.filter((c) => !c.fixa && agora - c.desde > 15000);
-      const capa = sortear(livres.length ? livres : capas.filter((c) => !c.fixa));
-      if (capa) {
-        const vis = visiveis();
-        const querRyze = !vis.has("ryze") && Math.random() < 0.1;
-        const fora = [...colecao.values()].filter((i) => !vis.has(i.chave));
-        const item = querRyze ? RYZE : sortear(fora.length ? fora : [...colecao.values()]);
-        if (item) await virar(capa, item);
-      }
-    }
-    setTimeout(virarUma, aleatorio(3500, 6500));
+    moverObjetos(agora, dt);
   }
 
   // ---------- música tocando
@@ -266,7 +397,7 @@
       if (achada) {
         const chave = chaveDe(principal, achada.album.title);
         if (colecao.has(chave)) return colecao.get(chave);
-        const nova = juntar(principal, achada.album.title, achada.album.cover_xl);
+        const nova = juntar(colecao, principal, achada.album.title, achada.album.cover_xl);
         gravarGuardadas([...lerGuardadas(), { artista: nova.artista, album: nova.album, src: nova.src }]);
         return nova;
       }
@@ -278,22 +409,19 @@
     return null;
   }
 
-  let faixaAtual = null;
-  function soltarDestaque() {
-    for (const c of capas) if (c.fixa) { c.fixa = false; c.el.classList.remove("tocando"); }
-  }
-
-  async function destacar(item) {
+  // o destaque fica no centro, um pouco acima, com o nome da faixa logo abaixo
+  let destaque = null, faixaAtual = null;
+  function soltarDestaque() { if (destaque) { sair(destaque); destaque = null; } }
+  function mostrarDestaque(item) {
+    if (destaque && destaque.item.chave === item.chave) return;
     soltarDestaque();
-    let capa = capas.find((c) => c.item.chave === item.chave);
-    if (!capa) {
-      // de preferência uma capa da fileira de baixo, perto do "tocando agora"
-      const baixo = capas.filter((c) => parseFloat(c.el.style.top) > H / 2);
-      capa = sortear(baixo.length ? baixo : capas);
-      if (!(await virar(capa, item))) return;
-    }
-    capa.fixa = true;
-    capa.el.classList.add("tocando");
+    const tam = H * 0.2;
+    destaque = criar({ item, x: W / 2, y: H * 0.45, tam, z: 1, tipo: "destaque" });
+    destaque.inc = { rx: aleatorio(-6, 6), ry: aleatorio(-10, 10), rz: aleatorio(-3, 3) };
+    destaque.bal.amp = 3;
+    destaque.carta.classList.add("tocando");
+    entrar(destaque, ENTRADAS[1]);
+    painelTocando.style.top = `${H * 0.45 + tam / 2 + H * 0.04}px`;
   }
 
   window.livelyCurrentTrack = async (dado) => {
@@ -311,24 +439,31 @@
     painelTocando.querySelector(".faixa").textContent = faixa.Artist ? `${faixa.Title}  ·  ${faixa.Artist}` : faixa.Title;
     painelTocando.classList.add("visivel");
     const item = await capaDaFaixa(faixa);
-    if (item && faixaAtual === id) await destacar(item);
+    if (item && faixaAtual === id) mostrarDestaque(item);
   };
 
   // o Lively avisa quando pausa (jogo, tela cheia, bateria): para tudo, inclusive as camadas que giram
   window.livelyWallpaperPlaybackChanged = (dado) => {
     try { pausado = Boolean(JSON.parse(dado).IsPaused); } catch { pausado = false; }
     document.body.classList.toggle("pausado", pausado);
+    for (const o of objetos) for (const a of o.carta.getAnimations()) pausado ? a.pause() : a.play();
     if (pausado) cancelAnimationFrame(laco);
     else { ultimo = performance.now(); laco = requestAnimationFrame(quadro); }
   };
 
   // ---------- início
-  function montarTudo() { prepararEspaco(); montarMoldura(); }
+  function montarTudo() {
+    prepararEspaco();
+    for (const o of objetos) o.el.remove();
+    objetos.clear();
+    if (destaque) { const item = destaque.item; destaque = null; mostrarDestaque(item); }
+  }
   let redim = 0;
   addEventListener("resize", () => { clearTimeout(redim); redim = setTimeout(montarTudo, 300); });
   montarTudo();
   laco = requestAnimationFrame(quadro);
-  setTimeout(virarUma, 2500);
+  semear();
+  setTimeout(passar, aleatorio(4000, 9000));
 
   if (location.hash === "#teste") setTimeout(() => window.livelyCurrentTrack(JSON.stringify({ Title: "Scar Tissue", Artist: "Red Hot Chili Peppers", AlbumTitle: "Californication" })), 1500);
   if (location.hash === "#teste-novo") setTimeout(() => window.livelyCurrentTrack(JSON.stringify({ Title: "Tempo Perdido", Artist: "Legião Urbana", AlbumTitle: "Dois" })), 1500);
