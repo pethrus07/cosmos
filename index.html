@@ -10,16 +10,13 @@
 <link rel="stylesheet" href="cosmos.css">
 </head>
 <body>
-  <!-- espaço: cada cena (nebulosas, estrelas distantes, astros) é feita de camadas estáticas que só giram
-       (barato) e é trocada aos poucos; as estrelas que vêm na direção da tela, a estrela cadente e o cometa
-       são o único desenho por quadro. Por cima: o tom da hora do dia e o pulso da música. -->
+  <!-- espaço: as nebulosas são desenhadas num canvas só (meia resolução, 12 quadros/s, com o pulso da
+       música); cada cena (estrelas distantes paradas e astros) é trocada aos poucos; as estrelas que vêm na
+       direção da tela, a estrela cadente e o cometa são o desenho por quadro. Por cima, o tom da hora. -->
+  <canvas id="nebulosas"></canvas>
   <div id="fundo"></div>
-  <div id="tom"></div>
-  <div id="pulso"></div>
-  <!-- o dia do Pedro (commits, notas, Hermes) virando constelações; depois matemática e versos -->
-  <canvas id="constelacoes"></canvas>
+  <!-- o dia do Pedro (commits, notas, Hermes) é desenhado no canvas das estrelas, pelo constelacoes.js -->
   <div id="matematica"></div>
-  <canvas id="estrelas"></canvas>
 
   <div id="espaco"></div>
   <!-- versos por cima das capas: são para ler -->

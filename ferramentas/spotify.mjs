@@ -25,6 +25,8 @@ const MAX_ALBUNS = 90;
 const lerToken = () => { try { return JSON.parse(fs.readFileSync(ARQ_TOKEN, "utf8")); } catch { return null; } };
 const gravarToken = (t) => { fs.mkdirSync(path.dirname(ARQ_TOKEN), { recursive: true }); fs.writeFileSync(ARQ_TOKEN, JSON.stringify(t, null, 1)); };
 const b64url = (buf) => buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+// o fundo mostra capa com ~150 px: a imagem de ~300 px do Spotify basta (a de 640 só gastava memória)
+const imagemMedia = (imgs) => [...imgs].sort((a, b) => Math.abs((a.width || 300) - 300) - Math.abs((b.width || 300) - 300))[0].url;
 const log = (...a) => console.log(new Date().toISOString().slice(0, 19), ...a);
 
 async function pedirToken(campos) {
@@ -99,7 +101,7 @@ async function atualizar() {
     for (const f of faixas) {
       const a = f?.album;
       if (!a?.id || !a.images?.length || albuns.has(a.id)) continue;
-      albuns.set(a.id, { id: a.id, artista: a.artists?.[0]?.name || "", album: a.name, imagem: a.images[0].url, origem });
+      albuns.set(a.id, { id: a.id, artista: a.artists?.[0]?.name || "", album: a.name, imagem: imagemMedia(a.images), origem });
     }
   };
   // recentes primeiro (o que está na cabeça agora), depois os de sempre
@@ -123,7 +125,7 @@ async function atualizar() {
   for (const a of artistas) {
     const destino = path.join(DIR_CAPAS, `artista-${a.id}.jpg`);
     if (!fs.existsSync(destino)) {
-      const r = await fetch(a.images[0].url, { signal: AbortSignal.timeout(30000) });
+      const r = await fetch(imagemMedia(a.images), { signal: AbortSignal.timeout(30000) });
       if (!r.ok) { log(`foto falhou: ${a.name} (HTTP ${r.status})`); continue; }
       fs.writeFileSync(destino, Buffer.from(await r.arrayBuffer()));
       baixadas++;

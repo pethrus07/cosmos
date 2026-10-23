@@ -1,4 +1,4 @@
-// Baixa as capas da lista (albuns.json) em 1000×1000 pela API pública do Deezer (sem login)
+// Baixa as capas da lista (albuns.json) em 500×500 (o fundo mostra ~150 px) pela API pública do Deezer (sem login)
 // e grava capas/capas.json + capas/capas.js (o que o papel de parede lê). Rodar de novo só baixa o que falta.
 // Uso: node ferramentas/baixar-capas.mjs
 import fs from "node:fs";
@@ -27,7 +27,7 @@ async function discografia(artista) {
   let albuns = [];
   if (a) {
     const { data = [] } = await json(`https://api.deezer.com/artist/${a.id}/albums?limit=300`);
-    albuns = data.filter((x) => x.record_type !== "single").map((x) => ({ collectionName: x.title, releaseDate: x.release_date, capa: x.cover_xl }));
+    albuns = data.filter((x) => x.record_type !== "single").map((x) => ({ collectionName: x.title, releaseDate: x.release_date, capa: x.cover_big }));
   }
   discografias.set(artista, albuns);
   return albuns;

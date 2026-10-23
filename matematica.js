@@ -71,9 +71,7 @@
     if (!lugar) { el.remove(); return; }
     el._x = lugar.x; el._y = lugar.y;
     Object.assign(el.style, { left: `${lugar.x}px`, top: `${lugar.y}px` });
-    el.style.setProperty("--dx", `${aleatorio(-30, 30)}px`);
-    el.style.setProperty("--dy", `${aleatorio(-14, 14)}px`);
-    el.style.setProperty("--deriva", `${aleatorio(40, 70)}s`);
+    Object.assign(el, { _dx: aleatorio(-30, 30), _dy: aleatorio(-14, 14), _per: aleatorio(80, 140), _f0: aleatorio(0, 6.28) });
     vivas.add(el);
     // escreve da esquerda para a direita, fica um tempo e se apaga
     el.animate([{ clipPath: "inset(0 100% 0 0)", opacity: 0 }, { clipPath: "inset(0 0% 0 0)", opacity: 1 }], { duration: 3200, easing: "ease-out", fill: "forwards" });
@@ -111,7 +109,7 @@
       if (livre(x, y, tam, tam)) lugar = { x, y };
     }
     if (!lugar) { atrator = null; return; }
-    const escala = Math.min(devicePixelRatio || 1, 1.5);
+    const escala = 1; // redesenhado a cada quadro: resolução de CSS
     const cv = document.createElement("canvas");
     cv.className = "atrator";
     cv.width = cv.height = Math.round(tam * escala);
@@ -205,7 +203,7 @@
 
   function iniciarFourier() {
     if (fourier || pausado() || document.querySelector(".carta.tocando")) return; // o centro está com a música
-    const tam = Math.round(H * 0.46), escala = Math.min(devicePixelRatio || 1, 1.5);
+    const tam = Math.round(H * 0.46), escala = 1;
     const cv = document.createElement("canvas");
     cv.className = "fourier";
     cv.width = cv.height = Math.round(tam * escala);
@@ -259,10 +257,14 @@
   let ultimo = performance.now();
   function quadro(agora) {
     requestAnimationFrame(quadro);
-    if (agora - ultimo < 1000 / 30) return;
+    if (agora - ultimo < 1000 / 24) return;
     const dt = Math.min(0.1, (agora - ultimo) / 1000);
     ultimo = agora;
     if (pausado()) return;
+    for (const f of vivas) { // fórmulas derivam devagar, ida e volta (no laço, não em animação CSS)
+      const s = Math.sin((agora / 1000 / f._per) * Math.PI * 2 + f._f0);
+      f.style.transform = `translate(${(f._dx * s).toFixed(1)}px, ${(f._dy * s).toFixed(1)}px)`;
+    }
     desenharAtrator(dt);
     desenharFourier(dt);
   }

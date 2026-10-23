@@ -65,35 +65,33 @@
   function amortecerAudio(agora) {
     audio.batida *= 0.88;
     if (agora - audio.ultimo > 1500) { audio.grave *= 0.9; audio.medio *= 0.9; audio.volume *= 0.9; } // silêncio: volta ao calmo
-    document.body.style.setProperty("--batida", audio.batida.toFixed(3));
-    pulso.style.opacity = Math.min(0.9, audio.grave * 0.9 + audio.batida * 0.25).toFixed(3);
-    fundo.style.transform = `scale(${(1 + audio.grave * 0.025).toFixed(4)})`;
   }
 
   // ---------- hora do dia: cada fase prefere paletas, tinge o céu e muda o ritmo
   const FASES = {
-    madrugada: { paletas: [3, 0, 1], densidade: 0.7, cena: [480000, 720000] },
-    manha: { paletas: [1, 3, 0], densidade: 1, cena: [240000, 420000] },
-    tarde: { paletas: [4, 2, 0], densidade: 1, cena: [240000, 420000] },
-    noite: { paletas: [0, 2, 1], densidade: 1, cena: [240000, 420000] },
+    madrugada: { paletas: [3, 0, 1], densidade: 0.7, cena: [480000, 720000], tom: [0, 0, 6, 0.38] },
+    manha: { paletas: [1, 3, 0], densidade: 1, cena: [240000, 420000], tom: [110, 160, 255, 0.045] },
+    tarde: { paletas: [4, 2, 0], densidade: 1, cena: [240000, 420000], tom: [255, 170, 40, 0.04] },
+    noite: { paletas: [0, 2, 1], densidade: 1, cena: [240000, 420000], tom: [0, 0, 0, 0] },
   };
   const nomeDaFase = (h = new Date().getHours()) => (h < 6 ? "madrugada" : h < 12 ? "manha" : h < 18 ? "tarde" : "noite");
   let fase = FASES[nomeDaFase()];
-  const tom = document.getElementById("tom"), pulso = document.getElementById("pulso");
+  let faseNome = null, tomAtual = null; // tom = [r, g, b, alfa], vai até o da fase em ~90 s
   function acompanharHora() {
     const nome = (location.hash.match(/fase-(\w+)/) || [])[1] || nomeDaFase();
-    if (tom.dataset.fase !== nome) {
-      const trocou = Boolean(tom.dataset.fase);
-      tom.dataset.fase = nome;
+    if (faseNome !== nome) {
+      const trocou = Boolean(faseNome);
+      faseNome = nome;
+      document.body.dataset.fase = nome;
       fase = FASES[nome] || FASES.noite;
       if (trocou && !pausado) montarCena(); // virou a fase: o céu já acompanha
     }
   }
 
   // ---------- espaço
-  const ceu = document.getElementById("estrelas");
+  const ceu = document.getElementById("nebulosas"); // um canvas só para o céu inteiro (uma camada de tela cheia)
   const ctx = ceu.getContext("2d");
-  let W = 0, H = 0, escala = 1, estrelas = [], cadente = null, proximaCadente = 0, cometa = null, proximoCometa = 0, pausado = false;
+  let W = 0, H = 0, escala = 1, escalaFixa = 1, estrelas = [], cadente = null, proximaCadente = 0, cometa = null, proximoCometa = 0, pausado = false;
 
   // ruído de valor com fBm: dá textura de filamento e falha, em vez de mancha redonda
   function criarRuido(semente) {
@@ -158,7 +156,7 @@
     const g2 = c2.getContext("2d");
     g2.filter = "blur(1.5px)";
     g2.drawImage(c, 0, 0);
-    return c2.toDataURL("image/png");
+    return c2;
   }
 
   // ---------- astros de fundo: galáxias espirais, um planeta e estrelas brilhantes com raios
@@ -282,6 +280,12 @@
   const livreNoFundo = (x, y, raio) => !(x - raio < 150 && y - raio < H * 0.55) // canto dos ícones
     && ((x - W / 2) / (W * 0.25)) ** 2 + ((y - H / 2) / (H * 0.3)) ** 2 >= 1; // meio livre
 
+  const animados = new Set(); // { el, f(t) }: o laço chama f a cada quadro; some quando o el sai da tela
+  function animar(agora) {
+    const t = agora / 1000;
+    for (const a of animados) { if (!a.el.isConnected) animados.delete(a); else a.f(t); }
+  }
+
   function porAstro(container, classe, tam, x, y, estilo = {}) {
     const el = document.createElement("div");
     el.className = `astro ${classe}`;
@@ -301,7 +305,12 @@
       const b = el.firstChild;
       b.style.setProperty("--t", `${tb}px`);
       b.style.setProperty("--cor", sortear(["#FFD666", "#FFB700", "#cfd8ff", "#ffffff", "#b9a4ff"]));
-      b.style.setProperty("--dur", `${aleatorio(1.8, 4.5)}s`);
+      const per = aleatorio(1.8, 4.5) * 2, fase0 = aleatorio(0, 6.28);
+      animados.add({ el, f: (t) => { // cintila: brilho, tamanho e um giro pequeno; pulsa na batida
+        const s = 0.5 + 0.5 * Math.sin((t / per) * Math.PI * 2 + fase0);
+        b.style.opacity = (0.35 + 0.65 * s).toFixed(3);
+        b.style.transform = `scale(${(0.75 + 0.3 * s + audio.batida * 0.4).toFixed(3)}) rotate(${(12 * s).toFixed(1)}deg)`;
+      } });
       if (aceso) el.classList.add("aceso");
       else requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add("aceso")));
       return el;
@@ -328,9 +337,11 @@
       const el = porAstro(container, "planeta", tp, lp.x, lp.y, { opacity: aleatorio(0.75, 0.95) });
       pl = { x: lp.x, y: lp.y, r: tp * 0.48 };
       el.querySelector(".corpo").style.backgroundImage = `url(${pintarPlaneta()})`;
-      el.style.setProperty("--dur", `${aleatorio(140, 220)}s`);
-      el.style.setProperty("--dx", `${aleatorio(-40, 40)}px`);
-      el.style.setProperty("--dy", `${aleatorio(-25, 25)}px`);
+      const dur = aleatorio(140, 220), dx = aleatorio(-40, 40), dy = aleatorio(-25, 25);
+      animados.add({ el, f: (t) => { // flutua devagar, ida e volta
+        const s = Math.sin((t / dur) * Math.PI * 2);
+        el.style.transform = `translate(${(dx * s).toFixed(1)}px, ${(dy * s).toFixed(1)}px)`;
+      } });
     }
     // galáxias distantes, deitadas em ângulos diferentes, girando devagar
     for (let i = 0; i < (W / H > 2 ? 3 : 2); i++) {
@@ -338,29 +349,24 @@
       if (!lg) continue;
       const el = porAstro(container, "galaxia", tg, lg.x, lg.y, { opacity: aleatorio(0.45, 0.75), transform: `rotate(${aleatorio(0, 180)}deg) scaleY(${aleatorio(0.35, 0.75)})` });
       el.querySelector(".corpo").style.backgroundImage = `url(${pintarGalaxia(sortear(["170,180,255", "200,150,255", "255,206,150"]))})`;
-      el.querySelector(".corpo").style.setProperty("--giro", `${aleatorio(300, 600)}s`);
+      const corpo = el.querySelector(".corpo"), giro = aleatorio(300, 600);
+      animados.add({ el, f: (t) => { corpo.style.transform = `rotate(${((t / giro) * 360).toFixed(2)}deg)`; } });
     }
     for (let i = 0; i < 7; i++) novoBrilho(container, true);
     return pl;
   }
 
   function montarCena(primeira = false) {
-    const D = Math.ceil(Math.hypot(W, H)) + 40; // as camadas giram: precisam cobrir a diagonal
     const cena = document.createElement("div");
     cena.className = primeira ? "cena imediata" : "cena";
-    const camada = (classe, url) => {
-      const el = document.createElement("div");
-      el.className = `camada ${classe}`;
-      Object.assign(el.style, { width: `${D}px`, height: `${D}px`, backgroundImage: `url(${url})` });
-      cena.appendChild(el);
-    };
+    const anteriorNeb = nebulosas[nebulosas.length - 1];
     const semente = Math.floor(Math.random() * 1e6);
     const preferidas = fase.paletas;
     const a = Math.random() < 0.6 ? preferidas[0] : sortear(preferidas);
     const b = sortear(preferidas.filter((i) => i !== a)); // duas paletas diferentes, as da fase do dia
-    camada("nebulosa-a", pintarNebulosa(semente, PALETAS[a]));
-    camada("nebulosa-b", pintarNebulosa(semente + 101, PALETAS[b]));
-    camada("distantes", pintarDistantes(D));
+    nebulosas.push({ a: pintarNebulosa(semente, PALETAS[a]), b: pintarNebulosa(semente + 101, PALETAS[b]),
+      d: pintarDistantes(), inicio: performance.now(), entrada: primeira ? 3000 : 40000, saindo: null, fase0: aleatorio(0, 6.28) });
+    if (anteriorNeb) anteriorNeb.saindo = performance.now() + 10000; // começa a sair um pouco depois
     const astros = document.createElement("div");
     astros.className = "astros";
     cena.appendChild(astros);
@@ -373,6 +379,58 @@
       anterior.classList.add("saindo");
       anterior.classList.remove("visivel");
       setTimeout(() => anterior.remove(), 60000);
+    }
+  }
+
+  // nebulosas num canvas só, em meia resolução: as duas texturas de cada cena giram em sentidos opostos e
+  // se alternam devagar; a cena nova entra (40 s) enquanto a anterior sai. O pulso da música (clarão no
+  // centro e respiro de escala) é desenhado aqui também, sem camada de mistura por cima da tela.
+  const nebCv = document.getElementById("nebulosas"), nebCtx = nebCv.getContext("2d");
+  const nebulosas = [];
+  const suave = (t) => t * t * (3 - 2 * t);
+  function desenharNebulosas(agora) {
+    const w = nebCv.width, h = nebCv.height, D = Math.hypot(w, h) + 4, t = agora / 1000;
+    const respiro = 1 + audio.grave * 0.025;
+    nebCtx.clearRect(0, 0, w, h);
+    const camada = (tex, ang, alfa, modo) => {
+      if (alfa <= 0.003) return;
+      nebCtx.save();
+      nebCtx.globalAlpha = Math.min(1, alfa);
+      nebCtx.globalCompositeOperation = modo;
+      nebCtx.translate(w / 2, h / 2);
+      nebCtx.rotate(ang);
+      nebCtx.scale(respiro, respiro);
+      nebCtx.drawImage(tex, -D / 2, -D / 2, D, D);
+      nebCtx.restore();
+    };
+    for (let i = nebulosas.length - 1; i >= 0; i--) {
+      const n = nebulosas[i];
+      const entra = suave(Math.min(1, (agora - n.inicio) / n.entrada));
+      const sai = n.saindo ? suave(Math.max(0, 1 - Math.max(0, agora - n.saindo) / 40000)) : 1;
+      if (n.saindo && sai <= 0) { nebulosas.splice(i, 1); continue; }
+      const alfa = entra * sai;
+      camada(n.a, (t / 1300) * Math.PI * 2 + n.fase0, alfa * (0.725 + 0.275 * Math.cos((t / 380) * Math.PI * 2 + n.fase0)), "source-over");
+      camada(n.b, -(t / 1700) * Math.PI * 2 - n.fase0, alfa * (0.55 + 0.35 * Math.sin((t / 300) * Math.PI * 2 + n.fase0)), "screen");
+      nebCtx.globalAlpha = alfa;
+      nebCtx.drawImage(n.d, 0, 0, w, h);
+      nebCtx.globalAlpha = 1;
+    }
+    const alvo = fase.tom;
+    tomAtual = tomAtual ? tomAtual.map((v, i) => v + (alvo[i] - v) * 0.00045) : alvo.slice(); // ~90 s a 24 quadros/s
+    if (tomAtual[3] > 0.002) {
+      nebCtx.fillStyle = `rgba(${tomAtual.slice(0, 3).map(Math.round).join(",")},${tomAtual[3].toFixed(4)})`;
+      nebCtx.fillRect(0, 0, w, h);
+    }
+    const pulso = Math.min(0.9, audio.grave * 0.9 + audio.batida * 0.25);
+    if (pulso > 0.01) {
+      const g = nebCtx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, Math.max(w, h) * 0.6);
+      g.addColorStop(0, `rgba(139,92,246,${0.22 * pulso})`);
+      g.addColorStop(0.35, `rgba(255,183,0,${0.06 * pulso})`);
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      nebCtx.globalCompositeOperation = "screen";
+      nebCtx.fillStyle = g;
+      nebCtx.fillRect(0, 0, w, h);
+      nebCtx.globalCompositeOperation = "source-over";
     }
   }
 
@@ -391,20 +449,21 @@
     setTimeout(renovarBrilhos, aleatorio(5000, 11000));
   }
 
-  function pintarDistantes(D) {
+  function pintarDistantes() {
     const c = document.createElement("canvas");
-    c.width = c.height = Math.ceil(D * escala);
+    c.width = nebCv.width;
+    c.height = nebCv.height;
     const g = c.getContext("2d");
-    const n = Math.round((D * D) / 1400);
+    const n = Math.round((W * H) / 1400);
     for (let i = 0; i < n; i++) {
       const sorte = Math.random();
       const cor = sorte < 0.03 ? "255,200,80" : sorte < 0.07 ? "170,140,255" : "220,228,255";
       g.fillStyle = `rgba(${cor},${aleatorio(0.15, 0.85) * (Math.random() < 0.9 ? 0.6 : 1)})`;
       g.beginPath();
-      g.arc(Math.random() * c.width, Math.random() * c.height, aleatorio(0.25, Math.random() < 0.97 ? 0.9 : 1.6) * escala, 0, Math.PI * 2);
+      g.arc(Math.random() * c.width, Math.random() * c.height, aleatorio(0.25, Math.random() < 0.97 ? 0.9 : 1.6) * escalaFixa, 0, Math.PI * 2);
       g.fill();
     }
-    return c.toDataURL("image/png");
+    return c;
   }
 
   const novaEstrela = (z = aleatorio(0.15, 1)) => {
@@ -418,7 +477,10 @@
 
   function prepararEspaco() {
     W = innerWidth; H = innerHeight;
-    escala = Math.min(devicePixelRatio || 1, 1.5);
+    escala = 1; // redesenhado a cada quadro: resolução de CSS basta (4K custava a GPU inteira)
+    escalaFixa = 1; // fundo em resolução de CSS: 1,5x custava 2,25x mais pixels na GPU integrada
+    nebCv.width = Math.round(W * escalaFixa);
+    nebCv.height = Math.round(H * escalaFixa);
     ceu.width = Math.round(W * escala);
     ceu.height = Math.round(H * escala);
     estrelas = Array.from({ length: Math.round((W * H) / 5200) }, () => novaEstrela());
@@ -433,7 +495,7 @@
   const VELOCIDADE = 0.017;
   function desenharCeu(agora, dt) {
     const w = ceu.width, h = ceu.height, cx = w / 2, cy = h / 2, f = Math.max(w, h) * 0.5;
-    ctx.clearRect(0, 0, w, h);
+    window.cosmosConstelacoes?.desenhar(ctx, agora); // o desenharNebulosas já limpou e pintou o fundo
     for (const e of estrelas) {
       e.z -= VELOCIDADE * (1 + audio.volume * 3.5 + audio.batida * 1.5) * dt;
       const sx = cx + (e.x / e.z) * f, sy = cy + (e.y / e.z) * f;
@@ -705,16 +767,18 @@
     }
   }
 
-  // 30 quadros por segundo bastam para movimento lento e gastam metade da GPU
-  let ultimo = 0, laco = 0;
+  // 24 quadros por segundo bastam para movimento lento (a GPU integrada desenha as duas telas)
+  let ultimo = 0, laco = 0, ultimoNeb = 0;
   function quadro(agora) {
     laco = requestAnimationFrame(quadro);
-    if (agora - ultimo < 1000 / 30) return;
+    if (agora - ultimo < 1000 / 24) return;
     const dt = Math.min(0.1, (agora - ultimo) / 1000 || 0);
     ultimo = agora;
     amortecerAudio(agora);
+    desenharNebulosas(agora); // fundo e estrelas no mesmo canvas: a tela do notebook compõe uma camada só
     desenharCeu(agora, dt);
     moverObjetos(agora, dt);
+    animar(agora);
   }
 
   // ---------- música tocando

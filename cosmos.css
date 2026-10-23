@@ -33,9 +33,8 @@ html, body {
 .cena.saindo { transition-delay: 10s; }
 .cena.imediata { transition-duration: 3s; }
 /* dentro da cena: duas nebulosas girando em sentidos opostos e se alternando devagar */
-.nebulosa-a { animation: girar 1300s linear infinite, alternar-a 190s ease-in-out infinite alternate; }
-.nebulosa-b { animation: girar-ao-contrario 1700s linear infinite, alternar-b 150s ease-in-out infinite alternate; mix-blend-mode: screen; }
-.distantes { animation: girar-ao-contrario 2400s linear infinite; }
+/* nebulosas: desenhadas no canvas #nebulosas (meia resolução, 12 quadros/s); estrelas distantes paradas */
+#nebulosas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 @keyframes girar { from { transform: translate(-50%, -50%) rotate(0deg); } to { transform: translate(-50%, -50%) rotate(360deg); } }
 @keyframes girar-ao-contrario { from { transform: translate(-50%, -50%) rotate(0deg); } to { transform: translate(-50%, -50%) rotate(-360deg); } }
 @keyframes alternar-a { from { opacity: 1; } to { opacity: .45; } }
@@ -50,11 +49,7 @@ html, body {
 .brilho { position: relative; }
 .astro { position: absolute; pointer-events: none; will-change: transform; }
 .astro .corpo { width: 100%; height: 100%; background: center / contain no-repeat; }
-.galaxia .corpo { animation: girar-simples var(--giro) linear infinite; }
-.planeta { animation: flutuar var(--dur) ease-in-out infinite alternate; }
-@keyframes girar-simples { to { transform: rotate(360deg); } }
-@keyframes flutuar { from { transform: translate(0, 0); } to { transform: translate(var(--dx), var(--dy)); } }
-.brilho { width: var(--t); height: var(--t); animation: cintilar var(--dur) ease-in-out infinite alternate; }
+.brilho { width: var(--t); height: var(--t); }
 .brilho::before, .brilho::after {
   content: "";
   position: absolute;
@@ -67,7 +62,6 @@ html, body {
 }
 .brilho::after { transform: translate(-50%, -50%) rotate(90deg); }
 .brilho .corpo { position: absolute; inset: 38%; width: auto; height: auto; border-radius: 50%; background: radial-gradient(circle, #fff 0%, var(--cor) 45%, transparent 75%); }
-@keyframes cintilar { from { opacity: .35; transform: scale(.75) rotate(0deg); } to { opacity: 1; transform: scale(1.05) rotate(12deg); } }
 
 body.pausado .camada, body.pausado .astro, body.pausado .astro .corpo, body.pausado .brilho { animation-play-state: paused; }
 
@@ -80,15 +74,12 @@ body.pausado .camada, body.pausado .astro, body.pausado .astro .corpo, body.paus
   color: rgba(226, 222, 255, .5);
   letter-spacing: .02em;
   text-shadow: 0 0 14px rgba(139, 92, 246, .35);
-  animation: deriva-formula var(--deriva) ease-in-out infinite alternate;
 }
 .formula.dourada { color: rgba(255, 214, 102, .6); text-shadow: 0 0 14px rgba(255, 183, 0, .3); }
 .formula sup, .formula sub { font-size: .68em; }
 .formula b { font-weight: 600; }
-@keyframes deriva-formula { to { transform: translate(var(--dx), var(--dy)); } }
 .atrator, .fourier { position: absolute; opacity: 0; transition: opacity 8s ease-in-out; }
 .fourier { transition-duration: 4s; }
-body.pausado .formula { animation-play-state: paused; }
 
 /* versos: tipografia de livro, palavra por palavra */
 #versos { position: absolute; inset: 0; pointer-events: none; z-index: 1; }
@@ -111,24 +102,7 @@ body.pausado .formula { animation-play-state: paused; }
 .verso.apagando { opacity: 0; transition: opacity 6s ease-in-out; }
 
 /* música no ar: o céu respira no grave (escala do fundo e um clarão suave no centro) */
-#fundo { transform-origin: 50% 50%; will-change: transform; }
-#pulso {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0;
-  mix-blend-mode: screen;
-  background: radial-gradient(ellipse at 50% 50%, rgba(139, 92, 246, .22) 0%, rgba(255, 183, 0, .06) 35%, transparent 70%);
-}
-.brilho-vida { transform: scale(calc(1 + var(--batida, 0) * .4)); }
 
-/* hora do dia: um tom por cima do céu, trocado devagar */
-#tom { position: absolute; inset: 0; pointer-events: none; transition: background-color 90s ease-in-out, opacity 90s ease-in-out; mix-blend-mode: soft-light; opacity: 0; }
-#tom[data-fase="manha"] { background-color: rgb(120, 170, 255); opacity: .14; }
-#tom[data-fase="tarde"] { background-color: rgb(255, 183, 0); opacity: .12; }
-#tom[data-fase="madrugada"] { background-color: rgb(0, 0, 8); opacity: .45; mix-blend-mode: multiply; }
-#tom[data-fase="noite"] { opacity: 0; }
-#constelacoes { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 
 /* objetos soltos no espaço: capas e o símbolo da RYZE.
    .objeto = posição (muda a cada quadro) · .balanco = inclinação e balanço · .carta = entrada/saída */

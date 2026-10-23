@@ -7,8 +7,7 @@
 // A posição de cada estrela sai do id (sempre a mesma), dentro da região da sua constelação.
 (() => {
   "use strict";
-  const cv = document.getElementById("constelacoes");
-  const ctx = cv.getContext("2d");
+  let ctx = null; // o canvas das estrelas do cosmos.js (recebido em desenhar)
   const pausado = () => document.body.classList.contains("pausado");
   let W = 0, H = 0, escala = 1;
 
@@ -40,8 +39,7 @@
 
   function montar() {
     W = innerWidth; H = innerHeight;
-    escala = Math.min(devicePixelRatio || 1, 1.5);
-    cv.width = Math.round(W * escala); cv.height = Math.round(H * escala);
+    escala = 1; // o canvas das estrelas é em resolução de CSS
     const dia = window.COSMOS_DIA;
     if (!dia) { estrelas = []; return; }
     const agora = performance.now();
@@ -88,7 +86,6 @@
   }
 
   function desenhar(agora) {
-    ctx.clearRect(0, 0, cv.width, cv.height);
     const batida = window.cosmosAudio?.batida || 0;
     linhas("commits", "205,220,255");
     linhas("notas", "170,140,255");
@@ -140,16 +137,10 @@
     document.head.appendChild(s);
   }
 
-  let ultimo = 0;
-  function quadro(agora) {
-    requestAnimationFrame(quadro);
-    if (pausado() || agora - ultimo < 1000 / 20) return; // 20 quadros por segundo: só piscar e clarão
-    ultimo = agora;
-    desenhar(agora);
-  }
+  // desenhado pelo laço do cosmos.js, no mesmo canvas das estrelas (sem camada de tela cheia própria)
+  window.cosmosConstelacoes = { desenhar: (c, agora) => { if (!estrelas.length && !explosoes.length) return; ctx = c; desenhar(agora); } };
   addEventListener("resize", montar);
   montar();
-  requestAnimationFrame(quadro);
   setInterval(recarregar, 2 * 60 * 1000);
   if (location.hash.includes("supernova")) setTimeout(() => {
     const [x, y] = posicao("hermes", "teste");
