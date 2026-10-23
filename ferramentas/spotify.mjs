@@ -12,7 +12,7 @@ import http from "node:http";
 import path from "node:path";
 import crypto from "node:crypto";
 import { spawn } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DIR_CAPAS = path.join(RAIZ, "capas", "spotify");
@@ -39,7 +39,11 @@ async function pedirToken(campos) {
   return j;
 }
 
-async function entrar(clientId) {
+const abrirNoNavegador = (url) => spawn("rundll32", ["url.dll,FileProtocolHandler", url], { detached: true, stdio: "ignore" }).unref();
+
+// `abrir` recebe o endereço de autorização (padrão: o navegador do Windows; o conectar-spotify.mjs usa a
+// mesma janela em que o Pedro já entrou)
+async function entrar(clientId, abrir = abrirNoNavegador) {
   if (!/^[0-9a-f]{32}$/i.test(clientId || "")) throw new Error("Client ID inválido: são 32 caracteres (0-9, a-f)");
   const verificador = b64url(crypto.randomBytes(48));
   const desafio = b64url(crypto.createHash("sha256").update(verificador).digest());
@@ -61,8 +65,8 @@ async function entrar(clientId) {
       pronto ? ok(pronto) : falha(new Error(`login recusado: ${erro || "estado não confere"}`));
     });
     servidor.listen(PORTA, "127.0.0.1", () => {
-      log("abrindo o navegador para o login do Spotify…");
-      spawn("rundll32", ["url.dll,FileProtocolHandler", url], { detached: true, stdio: "ignore" }).unref();
+      log("abrindo a autorização do Spotify…");
+      abrir(url);
     });
     setTimeout(() => { servidor.close(); falha(new Error("tempo esgotado esperando o login (5 min)")); }, 5 * 60 * 1000);
   });
@@ -114,18 +118,35 @@ async function atualizar() {
     }
     a.arquivo = `capas/spotify/${a.id}.jpg`;
   }
-  const prontas = lista.filter((a) => a.arquivo).map(({ artista, album, arquivo, origem }) => ({ artista, album, arquivo, origem }));
+  // fotos dos artistas mais ouvidos de sempre: entram redondas, em número menor que as capas
+  const artistas = (await api(token, "/me/top/artists?time_range=long_term&limit=20")).items.filter((a) => a.images?.length);
+  for (const a of artistas) {
+    const destino = path.join(DIR_CAPAS, `artista-${a.id}.jpg`);
+    if (!fs.existsSync(destino)) {
+      const r = await fetch(a.images[0].url, { signal: AbortSignal.timeout(30000) });
+      if (!r.ok) { log(`foto falhou: ${a.name} (HTTP ${r.status})`); continue; }
+      fs.writeFileSync(destino, Buffer.from(await r.arrayBuffer()));
+      baixadas++;
+    }
+    lista.push({ artista: a.name, album: "", arquivo: `capas/spotify/artista-${a.id}.jpg`, origem: "artista", tipo: "artista" });
+  }
+  const prontas = lista.filter((a) => a.arquivo).map(({ artista, album, arquivo, origem, tipo = "capa" }) => ({ artista, album, arquivo, origem, tipo }));
   // o papel de parede abre do disco (file://), onde fetch de JSON é bloqueado: vai como script
   fs.writeFileSync(path.join(RAIZ, "capas", "spotify.js"), `window.CAPAS_SPOTIFY = ${JSON.stringify(prontas)};\n`);
-  log(`${prontas.length} álbuns (${prontas.filter((a) => a.origem === "recente").length} recentes, ${prontas.filter((a) => a.origem === "mais-ouvido").length} mais ouvidos), ${baixadas} capas novas`);
+  const conta = (o) => prontas.filter((a) => a.origem === o).length;
+  log(`${prontas.length - conta("artista")} álbuns (${conta("recente")} recentes, ${conta("mais-ouvido")} mais ouvidos) e ${conta("artista")} artistas; ${baixadas} imagens novas`);
 }
 
-const [comando, arg] = process.argv.slice(2);
-try {
-  if (comando === "entrar") { await entrar(arg); await atualizar(); }
-  else if (comando === "atualizar") await atualizar();
-  else { console.log("uso: node ferramentas/spotify.mjs entrar <client_id> | atualizar"); process.exitCode = 2; }
-} catch (e) {
-  log(`erro: ${e.message}`);
-  process.exitCode = 1;
+export { entrar, atualizar };
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const [comando, arg] = process.argv.slice(2);
+  try {
+    if (comando === "entrar") { await entrar(arg); await atualizar(); }
+    else if (comando === "atualizar") await atualizar();
+    else { console.log("uso: node ferramentas/spotify.mjs entrar <client_id> | atualizar"); process.exitCode = 2; }
+  } catch (e) {
+    log(`erro: ${e.message}`);
+    process.exitCode = 1;
+  }
 }

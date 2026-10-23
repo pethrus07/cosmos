@@ -25,16 +25,41 @@ html, body {
   will-change: transform;
   pointer-events: none;
 }
-/* giro lentíssimo: uma volta a cada 20 min (nebulosa) e 30 min (estrelas distantes), em sentidos opostos */
-#nebulosa { animation: girar 1200s linear infinite, respirar 40s ease-in-out infinite alternate; }
-#distantes { animation: girar-ao-contrario 1800s linear infinite; }
+/* duas nebulosas girando em sentidos opostos e se alternando devagar: o céu muda ao longo dos minutos */
+#nebulosa { animation: girar 1300s linear infinite, alternar-a 190s ease-in-out infinite alternate; }
+#nebulosa2 { animation: girar-ao-contrario 1700s linear infinite, alternar-b 150s ease-in-out infinite alternate; mix-blend-mode: screen; }
+#distantes { animation: girar-ao-contrario 2400s linear infinite; }
 @keyframes girar { from { transform: translate(-50%, -50%) rotate(0deg); } to { transform: translate(-50%, -50%) rotate(360deg); } }
 @keyframes girar-ao-contrario { from { transform: translate(-50%, -50%) rotate(0deg); } to { transform: translate(-50%, -50%) rotate(-360deg); } }
-@keyframes respirar { from { opacity: .85; } to { opacity: 1; } }
+@keyframes alternar-a { from { opacity: 1; } to { opacity: .45; } }
+@keyframes alternar-b { from { opacity: .2; } to { opacity: .9; } }
 
 #estrelas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 
-body.pausado .camada { animation-play-state: paused; }
+/* astros de fundo: galáxias, planeta e estrelas brilhantes (atrás das capas) */
+#astros { position: absolute; inset: 0; pointer-events: none; }
+.astro { position: absolute; pointer-events: none; will-change: transform; }
+.astro .corpo { width: 100%; height: 100%; background: center / contain no-repeat; }
+.galaxia .corpo { animation: girar-simples var(--giro) linear infinite; }
+.planeta { animation: flutuar var(--dur) ease-in-out infinite alternate; }
+@keyframes girar-simples { to { transform: rotate(360deg); } }
+@keyframes flutuar { from { transform: translate(0, 0); } to { transform: translate(var(--dx), var(--dy)); } }
+.brilho { width: var(--t); height: var(--t); animation: cintilar var(--dur) ease-in-out infinite alternate; }
+.brilho::before, .brilho::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 100%;
+  height: 1.5px;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(90deg, transparent, var(--cor) 50%, transparent);
+}
+.brilho::after { transform: translate(-50%, -50%) rotate(90deg); }
+.brilho .corpo { position: absolute; inset: 38%; width: auto; height: auto; border-radius: 50%; background: radial-gradient(circle, #fff 0%, var(--cor) 45%, transparent 75%); }
+@keyframes cintilar { from { opacity: .35; transform: scale(.75) rotate(0deg); } to { opacity: 1; transform: scale(1.05) rotate(12deg); } }
+
+body.pausado .camada, body.pausado .astro, body.pausado .astro .corpo { animation-play-state: paused; }
 
 /* objetos soltos no espaço: capas e o símbolo da RYZE.
    .objeto = posição (muda a cada quadro) · .balanco = inclinação e balanço · .carta = entrada/saída */
@@ -64,6 +89,8 @@ body.pausado .camada { animation-play-state: paused; }
   filter: drop-shadow(0 0 22px rgba(255, 183, 0, .35)) drop-shadow(0 0 4px rgba(255, 214, 102, .5));
   backface-visibility: visible;
 }
+/* foto de artista: redonda, para não se confundir com capa */
+.carta.redonda { border-radius: 50%; }
 /* a capa do que está tocando: a borda dourada só aparece aqui, porque comunica estado */
 .carta.tocando {
   box-shadow: 0 0 0 2px var(--dourado), 0 0 60px rgba(255, 183, 0, .3), 0 24px 70px rgba(0, 0, 0, .75);

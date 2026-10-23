@@ -23,16 +23,16 @@
   const gravarGuardadas = (l) => { try { localStorage.setItem(GUARDADAS, JSON.stringify(l.slice(-400))); } catch { /* sem armazenamento: vale só nesta sessão */ } };
 
   let colecao = new Map();
-  const juntar = (mapa, artista, album, src) => {
-    const chave = chaveDe(artista, album);
-    if (!mapa.has(chave)) mapa.set(chave, { chave, artista, album, src });
+  const juntar = (mapa, artista, album, src, forma = "capa") => {
+    const chave = forma === "artista" ? `artista|${simples(artista)}` : chaveDe(artista, album);
+    if (!mapa.has(chave)) mapa.set(chave, { chave, artista, album, src, forma });
     return mapa.get(chave);
   };
   // com Spotify conectado, giram só os mais ouvidos + recentes dele; sem, a base de albuns.json
   function montarColecao() {
     const nova = new Map();
     const spotify = window.CAPAS_SPOTIFY || [];
-    for (const c of spotify.length ? spotify : window.CAPAS || []) juntar(nova, c.artista, c.album, c.arquivo);
+    for (const c of spotify.length ? spotify : window.CAPAS || []) juntar(nova, c.artista, c.album, c.arquivo, c.tipo);
     for (const c of lerGuardadas()) juntar(nova, c.artista, c.album, c.src);
     if (nova.size) colecao = nova;
   }
@@ -51,36 +51,208 @@
   const ceu = document.getElementById("estrelas");
   const ctx = ceu.getContext("2d");
   const nebulosa = document.getElementById("nebulosa");
+  const nebulosa2 = document.getElementById("nebulosa2");
   const distantes = document.getElementById("distantes");
-  let W = 0, H = 0, escala = 1, estrelas = [], cadente = null, proximaCadente = 0, pausado = false;
+  let W = 0, H = 0, escala = 1, estrelas = [], cadente = null, proximaCadente = 0, cometa = null, proximoCometa = 0, pausado = false;
 
-  function pintarNebulosa(D) {
-    const c = document.createElement("canvas");
-    c.width = c.height = Math.ceil(D / 2); // nebulosa é desfocada: meia resolução basta
-    const g = c.getContext("2d");
-    const r = c.width / 2;
-    g.filter = `blur(${Math.round(r * 0.04)}px)`;
-    g.globalCompositeOperation = "screen";
-    const nuvem = (x, y, raio, cor, alfa) => {
-      const gr = g.createRadialGradient(x, y, 0, x, y, raio);
-      gr.addColorStop(0, `rgba(${cor},${alfa})`);
-      gr.addColorStop(1, `rgba(${cor},0)`);
-      g.fillStyle = gr;
-      g.fillRect(x - raio, y - raio, raio * 2, raio * 2);
+  // ruído de valor com fBm: dá textura de filamento e falha, em vez de mancha redonda
+  function criarRuido(semente) {
+    let s = (semente >>> 0) || 1;
+    const rnd = () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
+    const p = new Uint8Array(512), v = new Float32Array(256);
+    for (let i = 0; i < 256; i++) { p[i] = i; v[i] = rnd(); }
+    for (let i = 255; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [p[i], p[j]] = [p[j], p[i]]; }
+    for (let i = 0; i < 256; i++) p[i + 256] = p[i];
+    const suave = (t) => t * t * (3 - 2 * t);
+    const ruido = (x, y) => {
+      const xi = Math.floor(x), yi = Math.floor(y), u = suave(x - xi), w = suave(y - yi);
+      const a = v[p[(xi & 255) + p[yi & 255]]], b = v[p[((xi + 1) & 255) + p[yi & 255]]];
+      const c = v[p[(xi & 255) + p[(yi + 1) & 255]]], d = v[p[((xi + 1) & 255) + p[(yi + 1) & 255]]];
+      return a + (b - a) * u + (c - a) * w + (a - b - c + d) * u * w;
     };
-    // braço da nebulosa: nuvens roxas ao longo de uma espiral frouxa que passa perto do centro
-    const roxos = ["106,40,201", "76,29,149", "139,92,246", "58,20,110"];
-    for (let i = 0; i < 70; i++) {
-      const t = aleatorio(0, 1);
-      const ang = t * Math.PI * 2.4 + aleatorio(-0.35, 0.35);
-      const dist = r * (0.12 + t * 0.75) * aleatorio(0.8, 1.15);
-      nuvem(r + Math.cos(ang) * dist, r + Math.sin(ang) * dist * 0.62, r * aleatorio(0.08, 0.26), sortear(roxos), aleatorio(0.05, 0.13));
+    return (x, y, oitavas = 5) => {
+      let t = 0, amp = 0.5, f = 1;
+      for (let i = 0; i < oitavas; i++) { t += ruido(x * f, y * f) * amp; f *= 2.03; amp *= 0.5; }
+      return t / (1 - 0.5 ** oitavas);
+    };
+  }
+
+  // cada camada tem a sua paleta; o dourado entra só nos veios mais densos
+  const PALETAS = [
+    [[24, 22, 88], [106, 40, 201], [168, 44, 128], [58, 20, 120]],
+    [[12, 40, 92], [20, 96, 118], [76, 29, 149], [139, 92, 246]],
+  ];
+  function pintarNebulosa(semente, paleta) {
+    const S = 560;
+    const c = document.createElement("canvas");
+    c.width = c.height = S;
+    const g = c.getContext("2d");
+    const img = g.createImageData(S, S), px = img.data;
+    const forma = criarRuido(semente), tom = criarRuido(semente + 7), vazio = criarRuido(semente + 13);
+    const k = 3.2 / S, ox = (semente % 97) * 1.7, oy = (semente % 89) * 2.3;
+    for (let y = 0; y < S; y++) {
+      for (let x = 0; x < S; x++) {
+        const dx = x / S - 0.5, dy = y / S - 0.5, r = Math.sqrt(dx * dx + dy * dy) * 2;
+        if (r >= 1) continue; // a camada gira: fora do círculo nunca aparece inteira
+        const nx = x * k + ox, ny = y * k + oy;
+        const fil = 1 - Math.abs(forma(nx * 1.9 + 5, ny * 1.9 - 3, 4) * 2 - 1); // filamentos (ruído "em crista")
+        let dens = Math.max(0, (forma(nx, ny) - 0.38) / 0.36) * (0.35 + 0.65 * fil * fil);
+        dens *= Math.min(1, Math.max(0, (vazio(nx * 0.8 - 9, ny * 0.8 + 4, 3) - 0.32) / 0.25)); // falhas escuras
+        dens *= 1 - r * r;
+        if (dens <= 0.01) continue;
+        const h = Math.min(0.999, Math.max(0, (tom(nx * 0.6, ny * 0.6, 3) - 0.25) / 0.5)) * (paleta.length - 1);
+        const i0 = Math.floor(h), t = h - i0, c0 = paleta[i0], c1 = paleta[Math.min(paleta.length - 1, i0 + 1)];
+        let R = c0[0] + (c1[0] - c0[0]) * t, G = c0[1] + (c1[1] - c0[1]) * t, B = c0[2] + (c1[2] - c0[2]) * t;
+        const ouro = Math.max(0, (fil - 0.85) / 0.15) * Math.max(0, (dens - 0.45) / 0.55) * 0.75;
+        R += (255 - R) * ouro; G += (183 - G) * ouro; B -= B * ouro;
+        const o = (y * S + x) * 4;
+        px[o] = R; px[o + 1] = G; px[o + 2] = B; px[o + 3] = Math.min(255, dens * 285);
+      }
     }
-    // poeira fria e um brilho dourado bem fraco no fundo do túnel
-    for (let i = 0; i < 18; i++) nuvem(r + aleatorio(-r, r) * 0.8, r + aleatorio(-r, r) * 0.6, r * aleatorio(0.1, 0.3), "30,50,110", aleatorio(0.03, 0.07));
-    nuvem(r, r, r * 0.22, "255,183,0", 0.05);
-    nuvem(r, r, r * 0.07, "255,214,102", 0.06);
+    g.putImageData(img, 0, 0);
+    const c2 = document.createElement("canvas"); // desfoque leve para não serrilhar ao ampliar
+    c2.width = c2.height = S;
+    const g2 = c2.getContext("2d");
+    g2.filter = "blur(1.5px)";
+    g2.drawImage(c, 0, 0);
+    return c2.toDataURL("image/png");
+  }
+
+  // ---------- astros de fundo: galáxias espirais, um planeta e estrelas brilhantes com raios
+  function pintarGalaxia(cor) {
+    const S = 256, c = document.createElement("canvas");
+    c.width = c.height = S;
+    const g = c.getContext("2d");
+    g.translate(S / 2, S / 2);
+    g.globalCompositeOperation = "lighter";
+    const bracos = Math.random() < 0.4 ? 3 : 2;
+    for (let b = 0; b < bracos; b++) {
+      for (let i = 0; i < 900; i++) {
+        const t = Math.random() ** 0.8;
+        const ang = t * Math.PI * 3.2 + (b * 2 * Math.PI) / bracos + aleatorio(-0.4, 0.4) * (1 - t * 0.5);
+        const r = t * S * 0.46 + aleatorio(-5, 5);
+        g.fillStyle = `rgba(${t < 0.22 ? "255,238,214" : cor},${(1 - t) * 0.45 + 0.06})`;
+        g.beginPath();
+        g.arc(Math.cos(ang) * r, Math.sin(ang) * r, aleatorio(0.4, 1.5), 0, Math.PI * 2);
+        g.fill();
+      }
+    }
+    const nucleo = g.createRadialGradient(0, 0, 0, 0, 0, S * 0.16);
+    nucleo.addColorStop(0, "rgba(255,246,230,.9)");
+    nucleo.addColorStop(0.4, `rgba(${cor},.35)`);
+    nucleo.addColorStop(1, "rgba(0,0,0,0)");
+    g.fillStyle = nucleo;
+    g.fillRect(-S / 2, -S / 2, S, S);
     return c.toDataURL("image/png");
+  }
+
+  function pintarPlaneta() {
+    const S = 480, R = S * 0.24, c = document.createElement("canvas");
+    c.width = c.height = S;
+    const g = c.getContext("2d");
+    const [claro, meio, escuro] = sortear([["#8f6be0", "#4b2391", "#120a26"], ["#5fb3c4", "#1f6575", "#061318"], ["#e3b25a", "#8a5a1c", "#170e04"]]);
+    const inclin = aleatorio(-0.45, 0.45), temAnel = Math.random() < 0.75;
+    const anel = (frente) => {
+      g.save();
+      g.translate(S / 2, S / 2);
+      g.rotate(inclin);
+      for (const [rx, larg, alfa] of [[R * 1.75, R * 0.16, 0.38], [R * 2.05, R * 0.07, 0.22]]) {
+        g.beginPath();
+        g.ellipse(0, 0, rx, rx * 0.26, 0, frente ? 0 : Math.PI, frente ? Math.PI : Math.PI * 2);
+        g.strokeStyle = `rgba(255,214,150,${alfa})`;
+        g.lineWidth = larg;
+        g.stroke();
+      }
+      g.restore();
+    };
+    if (temAnel) anel(false);
+    g.save();
+    g.beginPath();
+    g.arc(S / 2, S / 2, R, 0, Math.PI * 2);
+    g.clip();
+    const corpo = g.createRadialGradient(S / 2 - R * 0.4, S / 2 - R * 0.4, R * 0.1, S / 2, S / 2, R * 1.1);
+    corpo.addColorStop(0, claro); corpo.addColorStop(0.55, meio); corpo.addColorStop(1, escuro);
+    g.fillStyle = corpo;
+    g.fillRect(0, 0, S, S);
+    g.translate(S / 2, S / 2);
+    g.rotate(inclin);
+    for (let i = 0; i < 9; i++) { // faixas de nuvem
+      g.fillStyle = `rgba(255,255,255,${aleatorio(0.02, 0.07)})`;
+      g.fillRect(-R, -R + (i / 9) * 2 * R + aleatorio(-4, 4), 2 * R, aleatorio(4, 14));
+    }
+    g.rotate(-inclin);
+    const sombra = g.createLinearGradient(-R, -R, R, R); // lado da noite
+    sombra.addColorStop(0.35, "rgba(0,0,0,0)");
+    sombra.addColorStop(1, "rgba(0,0,0,.85)");
+    g.fillStyle = sombra;
+    g.fillRect(-R, -R, 2 * R, 2 * R);
+    g.restore();
+    g.beginPath(); // atmosfera
+    g.arc(S / 2, S / 2, R + 1, 0, Math.PI * 2);
+    g.strokeStyle = claro;
+    g.globalAlpha = 0.35;
+    g.lineWidth = 3;
+    g.shadowColor = claro;
+    g.shadowBlur = 18;
+    g.stroke();
+    g.globalAlpha = 1;
+    g.shadowBlur = 0;
+    if (temAnel) anel(true);
+    return c.toDataURL("image/png");
+  }
+
+  const astros = document.getElementById("astros");
+  let planeta = null; // { x, y, r }: as capas não nascem em cima dele
+  function montarAstros() {
+    astros.textContent = "";
+    planeta = null;
+    const ocupados = [];
+    const lugar = (raio) => {
+      for (let i = 0; i < 80; i++) {
+        const x = aleatorio(raio, W - raio), y = aleatorio(raio, H - raio);
+        if (x - raio < 150 && y - raio < H * 0.55) continue; // canto dos ícones
+        if (((x - W / 2) / (W * 0.25)) ** 2 + ((y - H / 2) / (H * 0.3)) ** 2 < 1) continue; // meio livre
+        if (ocupados.some((o) => Math.hypot(o.x - x, o.y - y) < o.r + raio + H * 0.05)) continue;
+        ocupados.push({ x, y, r: raio });
+        return { x, y };
+      }
+      return null;
+    };
+    const por = (classe, tam, x, y, estilo = {}) => {
+      const el = document.createElement("div");
+      el.className = `astro ${classe}`;
+      Object.assign(el.style, { left: `${x - tam / 2}px`, top: `${y - tam / 2}px`, width: `${tam}px`, height: `${tam}px` }, estilo);
+      el.innerHTML = '<div class="corpo"></div>';
+      astros.appendChild(el);
+      return el;
+    };
+    // planeta: um por início de tela, de cor e anel sorteados
+    const tp = H * aleatorio(0.22, 0.32), lp = lugar(tp * 0.45);
+    if (lp) {
+      const el = por("planeta", tp, lp.x, lp.y, { opacity: aleatorio(0.7, 0.9) });
+      planeta = { x: lp.x, y: lp.y, r: tp * 0.48 };
+      el.querySelector(".corpo").style.backgroundImage = `url(${pintarPlaneta()})`;
+      el.style.setProperty("--dur", `${aleatorio(140, 220)}s`);
+      el.style.setProperty("--dx", `${aleatorio(-40, 40)}px`);
+      el.style.setProperty("--dy", `${aleatorio(-25, 25)}px`);
+    }
+    // galáxias distantes, deitadas em ângulos diferentes, girando devagar
+    for (let i = 0; i < (W / H > 2 ? 3 : 2); i++) {
+      const tg = H * aleatorio(0.08, 0.17), lg = lugar(tg * 0.5);
+      if (!lg) continue;
+      const el = por("galaxia", tg, lg.x, lg.y, { opacity: aleatorio(0.45, 0.75), transform: `rotate(${aleatorio(0, 180)}deg) scaleY(${aleatorio(0.35, 0.75)})` });
+      el.querySelector(".corpo").style.backgroundImage = `url(${pintarGalaxia(sortear(["170,180,255", "200,150,255", "255,206,150"]))})`;
+      el.querySelector(".corpo").style.setProperty("--giro", `${aleatorio(300, 600)}s`);
+    }
+    // estrelas brilhantes com raios, cintilando cada uma no seu ritmo
+    for (let i = 0; i < 7; i++) {
+      const tb = aleatorio(14, 30), lb = lugar(tb);
+      if (!lb) continue;
+      const el = por("brilho", tb, lb.x, lb.y);
+      el.style.setProperty("--t", `${tb}px`);
+      el.style.setProperty("--cor", sortear(["#FFD666", "#FFB700", "#cfd8ff", "#ffffff", "#b9a4ff"]));
+      el.style.setProperty("--dur", `${aleatorio(1.8, 4.5)}s`);
+    }
   }
 
   function pintarDistantes(D) {
@@ -114,11 +286,15 @@
     ceu.width = Math.round(W * escala);
     ceu.height = Math.round(H * escala);
     const D = Math.ceil(Math.hypot(W, H)) + 40; // as camadas giram: precisam cobrir a diagonal
-    for (const camada of [nebulosa, distantes]) { camada.style.width = `${D}px`; camada.style.height = `${D}px`; }
-    nebulosa.style.backgroundImage = `url(${pintarNebulosa(D)})`;
+    for (const camada of [nebulosa, nebulosa2, distantes]) { camada.style.width = `${D}px`; camada.style.height = `${D}px`; }
+    const semente = Math.floor(Math.random() * 1e6); // céu diferente a cada início
+    nebulosa.style.backgroundImage = `url(${pintarNebulosa(semente, PALETAS[0])})`;
+    nebulosa2.style.backgroundImage = `url(${pintarNebulosa(semente + 101, PALETAS[1])})`;
     distantes.style.backgroundImage = `url(${pintarDistantes(D)})`;
     estrelas = Array.from({ length: Math.round((W * H) / 5200) }, () => novaEstrela());
     proximaCadente = performance.now() + aleatorio(6000, 15000);
+    proximoCometa = performance.now() + aleatorio(25000, 60000);
+    montarAstros();
   }
 
   // estrelas vindo devagar na direção da tela: z cai de 1 a ~0,05 em quase um minuto
@@ -136,6 +312,41 @@
       ctx.beginPath();
       ctx.arc(sx, sy, raio, 0, Math.PI * 2);
       ctx.fill();
+    }
+    // cometa: raro e lento, cabeça branco-azulada e cauda longa apontando para trás
+    if (!cometa && agora > proximoCometa) {
+      const daEsquerda = Math.random() < 0.5, ang = aleatorio(0.08, 0.3);
+      cometa = { x0: daEsquerda ? -0.1 * w : 1.1 * w, y0: aleatorio(0.1, 0.45) * h, ux: (daEsquerda ? 1 : -1) * Math.cos(ang), uy: Math.sin(ang),
+        vida: 0, dur: aleatorio(16, 24), compr: aleatorio(260, 420) * escala };
+    }
+    if (cometa) {
+      cometa.vida += dt;
+      const p = cometa.vida / cometa.dur;
+      if (p >= 1) { cometa = null; proximoCometa = agora + aleatorio(70000, 150000); }
+      else {
+        const andou = p * w * 1.3;
+        const hx = cometa.x0 + cometa.ux * andou, hy = cometa.y0 + cometa.uy * andou;
+        const tx = hx - cometa.ux * cometa.compr, ty = hy - cometa.uy * cometa.compr;
+        const px = -cometa.uy, py = cometa.ux, larg = 5 * escala;
+        const cauda = ctx.createLinearGradient(hx, hy, tx, ty);
+        cauda.addColorStop(0, "rgba(220,235,255,.55)");
+        cauda.addColorStop(0.3, "rgba(150,180,255,.18)");
+        cauda.addColorStop(1, "rgba(120,90,220,0)");
+        ctx.fillStyle = cauda;
+        ctx.beginPath();
+        ctx.moveTo(hx + px * larg, hy + py * larg);
+        ctx.lineTo(tx + px * larg * 4, ty + py * larg * 4);
+        ctx.lineTo(tx - px * larg * 4, ty - py * larg * 4);
+        ctx.lineTo(hx - px * larg, hy - py * larg);
+        ctx.closePath();
+        ctx.fill();
+        const cabeca = ctx.createRadialGradient(hx, hy, 0, hx, hy, 9 * escala);
+        cabeca.addColorStop(0, "rgba(255,255,255,1)");
+        cabeca.addColorStop(0.4, "rgba(190,215,255,.6)");
+        cabeca.addColorStop(1, "rgba(150,180,255,0)");
+        ctx.fillStyle = cabeca;
+        ctx.beginPath(); ctx.arc(hx, hy, 9 * escala, 0, Math.PI * 2); ctx.fill();
+      }
     }
     // estrela cadente dourada
     if (!cadente && agora > proximaCadente) {
@@ -194,6 +405,7 @@
     el.innerHTML = '<div class="balanco"><div class="carta"></div></div>';
     const carta = el.querySelector(".carta");
     if (item.ryze) carta.classList.add("ryze");
+    if (item.forma === "artista") carta.classList.add("redonda");
     else carta.style.backgroundImage = `url("${item.src}")`;
     espaco.appendChild(el);
     const o = {
@@ -237,6 +449,7 @@
     for (let i = 0; i < 90; i++) {
       const x = aleatorio(m + tam / 2, W - m - tam / 2), y = aleatorio(m + tam / 2, H - m - tam / 2);
       if (naZonaDosIcones(x, y, tam / 2) || noMeio(x, y)) continue;
+      if (planeta && Math.hypot(planeta.x - x, planeta.y - y) < planeta.r + tam / 2 + folga * 0.5) continue;
       let ok = true;
       for (const o of objetos) {
         if (o.tipo !== "fixo") continue;
