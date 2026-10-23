@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cosmos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="cosmos.css">
+</head>
+<body>
+  <!-- espaço: nebulosa e estrelas distantes são camadas estáticas que só giram (barato); as estrelas que
+       vêm na direção da tela e a estrela cadente são o único desenho por quadro -->
+  <div id="nebulosa" class="camada"></div>
+  <div id="distantes" class="camada"></div>
+  <canvas id="estrelas"></canvas>
+
+  <div id="moldura"></div>
+
+  <div id="tocando" aria-live="polite">
+    <span class="rotulo">tocando agora</span>
+    <span class="faixa"></span>
+  </div>
+
+  <script src="capas/capas.js"></script>
+  <script src="cosmos.js"></script>
+</body>
+</html>

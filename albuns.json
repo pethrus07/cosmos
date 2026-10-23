@@ -1,0 +1,9 @@
+[
+  { "artista": "Red Hot Chili Peppers", "albuns": ["Mother's Milk", "Blood Sugar Sex Magik", "One Hot Minute", "Californication", "By the Way", "Stadium Arcadium", "I'm with You", "The Getaway", "Unlimited Love", "Return of the Dream Canteen"] },
+  { "artista": "Alice in Chains", "albuns": ["Facelift", "Dirt", "Jar of Flies", "Alice in Chains", "Sap", "Unplugged", "Black Gives Way to Blue", "The Devil Put Dinosaurs Here", "Rainier Fog"] },
+  { "artista": "Linkin Park", "albuns": ["Hybrid Theory", "Reanimation", "Meteora", "Minutes to Midnight", "A Thousand Suns", "Living Things", "The Hunting Party", "One More Light", "From Zero"] },
+  { "artista": "Charlie Brown Jr.", "albuns": ["Transpiração Contínua Prolongada", "Preço Curto... Prazo Longo", "Nadando com os Tubarões", "Abalando a Sua Fábrica", "Bocas Ordinárias", "Acústico (Ao Vivo)", "Tamo Aí na Atividade", "Imunidade Musical", "Camisa 10 Joga Bola Até na Chuva", "La Família 013"] },
+  { "artista": "Radiohead", "albuns": ["Pablo Honey", "The Bends", "OK Computer", "Kid A", "Amnesiac", "Hail to the Thief", "In Rainbows", "The King of Limbs", "A Moon Shaped Pool"] },
+  { "artista": "Scorpions", "albuns": ["Lovedrive", "Animal Magnetism", "Blackout", "Love at First Sting", "Savage Amusement", "Crazy World", "Face the Heat", "Unbreakable", "Sting in the Tail", "Rock Believer"] },
+  { "artista": "Guns N' Roses", "albuns": ["Appetite for Destruction", "G N' R Lies", "Use Your Illusion I", "Use Your Illusion II", "The Spaghetti Incident?", "Chinese Democracy"] }
+]
