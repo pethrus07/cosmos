@@ -31,7 +31,7 @@ async function aviso(texto) {
 }
 
 // espera uma condição olhando a página a cada segundo, repondo a faixa (cada navegação apaga)
-async function esperar(condicao, texto, minutos = 15) {
+async function esperar(condicao, texto, minutos = 60) {
   const fim = Date.now() + minutos * 60000;
   while (Date.now() < fim) {
     if (await condicao().catch(() => false)) return true;
@@ -53,16 +53,22 @@ try {
     "Cosmos: entre na sua conta do Spotify (e aceite os termos de desenvolvedor, se ele pedir). O resto eu preencho.");
   log("formulário de criação aberto");
 
+  // ids do formulário lidos em 23/10/2026: o botão Add se chama "Add redirect URI" (aria-label) e as caixas
+  // de API ficam escondidas atrás de um desenho próprio (clicar no rótulo é o que funciona)
   const faltou = [];
-  if (!(await tentar("nome", () => campoNome().fill("Cosmos")))) faltou.push("App name: Cosmos");
-  if (!(await tentar("descrição", () => page.getByLabel(/app description/i).first().fill("Papel de parede pessoal")))) faltou.push("App description");
+  const opcoes = { timeout: 8000 };
+  if (!(await tentar("nome", () => page.locator("#name").fill("Cosmos", opcoes)))) faltou.push("App name: Cosmos");
+  if (!(await tentar("descrição", () => page.locator("#description").fill("Papel de parede pessoal", opcoes)))) faltou.push("App description");
   const redirect = await tentar("redirect", async () => {
-    const campo = page.getByLabel(/redirect uri/i).first();
-    await campo.fill(VOLTA);
-    await page.getByRole("button", { name: /^add$/i }).first().click();
+    await page.locator("#newRedirectUri").fill(VOLTA, opcoes);
+    await page.locator('button[aria-label="Add redirect URI"]').click(opcoes);
   });
   if (!redirect) faltou.push(`Redirect URI: ${VOLTA} (e clicar Add)`);
-  if (!(await tentar("Web API", () => page.getByLabel(/^web api$/i).first().check()))) faltou.push("marcar Web API");
+  const webApi = await tentar("Web API", async () => {
+    if (!(await page.locator("#apis-used-1").isChecked())) await page.locator('label[for="apis-used-1"]').click(opcoes);
+    if (!(await page.locator("#apis-used-1").isChecked())) throw new Error("caixa continua desmarcada");
+  });
+  if (!webApi) faltou.push("marcar Web API");
   log(faltou.length ? `faltou preencher: ${faltou.join(" · ")}` : "formulário preenchido");
 
   const pedido = faltou.length
@@ -76,7 +82,7 @@ try {
   await entrar(clientId, (url) => { page.goto(url).then(() => aviso("Cosmos: clique em Concordar (Agree) para o Cosmos ler seus mais ouvidos e recentes.")).catch(() => {}); });
   await atualizar();
   await aviso("Cosmos conectado ao Spotify. Pode fechar esta janela.");
-  await page.waitForTimeout(6000);
+  await page.waitForTimeout(6000).catch(() => {}); // fechar a janela antes disso não é erro
 } catch (e) {
   log(`erro: ${e.message}`);
   await aviso(`Cosmos: deu erro (${e.message}). O Claude já está vendo.`);

@@ -25,10 +25,17 @@ html, body {
   will-change: transform;
   pointer-events: none;
 }
-/* duas nebulosas girando em sentidos opostos e se alternando devagar: o céu muda ao longo dos minutos */
-#nebulosa { animation: girar 1300s linear infinite, alternar-a 190s ease-in-out infinite alternate; }
-#nebulosa2 { animation: girar-ao-contrario 1700s linear infinite, alternar-b 150s ease-in-out infinite alternate; mix-blend-mode: screen; }
-#distantes { animation: girar-ao-contrario 2400s linear infinite; }
+/* cenas: cada uma é um céu completo; a nova aparece (40 s) enquanto a anterior se desfaz, começando um
+   pouco depois para o céu não escurecer no meio da troca */
+#fundo { position: absolute; inset: 0; }
+.cena { position: absolute; inset: 0; opacity: 0; transition: opacity 40s ease-in-out; }
+.cena.visivel { opacity: 1; }
+.cena.saindo { transition-delay: 10s; }
+.cena.imediata { transition-duration: 3s; }
+/* dentro da cena: duas nebulosas girando em sentidos opostos e se alternando devagar */
+.nebulosa-a { animation: girar 1300s linear infinite, alternar-a 190s ease-in-out infinite alternate; }
+.nebulosa-b { animation: girar-ao-contrario 1700s linear infinite, alternar-b 150s ease-in-out infinite alternate; mix-blend-mode: screen; }
+.distantes { animation: girar-ao-contrario 2400s linear infinite; }
 @keyframes girar { from { transform: translate(-50%, -50%) rotate(0deg); } to { transform: translate(-50%, -50%) rotate(360deg); } }
 @keyframes girar-ao-contrario { from { transform: translate(-50%, -50%) rotate(0deg); } to { transform: translate(-50%, -50%) rotate(-360deg); } }
 @keyframes alternar-a { from { opacity: 1; } to { opacity: .45; } }
@@ -37,7 +44,10 @@ html, body {
 #estrelas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 
 /* astros de fundo: galáxias, planeta e estrelas brilhantes (atrás das capas) */
-#astros { position: absolute; inset: 0; pointer-events: none; }
+.astros { position: absolute; inset: 0; pointer-events: none; }
+.brilho-vida { opacity: 0; transition: opacity 7s ease-in-out; }
+.brilho-vida.aceso { opacity: 1; }
+.brilho { position: relative; }
 .astro { position: absolute; pointer-events: none; will-change: transform; }
 .astro .corpo { width: 100%; height: 100%; background: center / contain no-repeat; }
 .galaxia .corpo { animation: girar-simples var(--giro) linear infinite; }
@@ -59,7 +69,26 @@ html, body {
 .brilho .corpo { position: absolute; inset: 38%; width: auto; height: auto; border-radius: 50%; background: radial-gradient(circle, #fff 0%, var(--cor) 45%, transparent 75%); }
 @keyframes cintilar { from { opacity: .35; transform: scale(.75) rotate(0deg); } to { opacity: 1; transform: scale(1.05) rotate(12deg); } }
 
-body.pausado .camada, body.pausado .astro, body.pausado .astro .corpo { animation-play-state: paused; }
+body.pausado .camada, body.pausado .astro, body.pausado .astro .corpo, body.pausado .brilho { animation-play-state: paused; }
+
+/* matemática: fórmulas, atrator caótico e a RYZE por Fourier (atrás das capas) */
+#matematica { position: absolute; inset: 0; pointer-events: none; }
+.formula {
+  position: absolute;
+  white-space: nowrap;
+  font-family: "Cambria Math", "STIX Two Math", "Latin Modern Math", "Times New Roman", serif;
+  color: rgba(226, 222, 255, .5);
+  letter-spacing: .02em;
+  text-shadow: 0 0 14px rgba(139, 92, 246, .35);
+  animation: deriva-formula var(--deriva) ease-in-out infinite alternate;
+}
+.formula.dourada { color: rgba(255, 214, 102, .6); text-shadow: 0 0 14px rgba(255, 183, 0, .3); }
+.formula sup, .formula sub { font-size: .68em; }
+.formula b { font-weight: 600; }
+@keyframes deriva-formula { to { transform: translate(var(--dx), var(--dy)); } }
+.atrator, .fourier { position: absolute; opacity: 0; transition: opacity 8s ease-in-out; }
+.fourier { transition-duration: 4s; }
+body.pausado .formula { animation-play-state: paused; }
 
 /* objetos soltos no espaço: capas e o símbolo da RYZE.
    .objeto = posição (muda a cada quadro) · .balanco = inclinação e balanço · .carta = entrada/saída */
