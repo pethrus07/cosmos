@@ -50,3 +50,12 @@ Giram juntas, sem repetir:
 Testes no navegador: `index.html#teste` (faixa da coleção), `#teste-novo` (faixa de fora), `#cenas`
 (expõe `cosmosNovaCena()` para forçar a troca de céu), `#fourier` (RYZE por Fourier logo de início),
 `#planetas` (expõe `cosmosPlanetas()` com as variações de planeta). Ganchos combinam: `#versos,supernova,fase-tarde`.
+
+## Roadmap
+
+- **Modo leve na tela do notebook** (anotado em 23/10/2026; o Pedro não sente gargalo, então fica para
+  quando precisar). Medido no XPS: o Cosmos usa ~48% da GPU Intel integrada, ~7% da CPU e ~1,5 GB, quase
+  tudo vindo da tela do notebook (3456×2160); o Lively zera o consumo quando a tela está coberta por janela
+  maximizada, em jogo/tela cheia e na bateria. A ideia: nessa tela, 15 quadros/s e menos capas, mantendo o
+  LG igual (deve cair perto da metade). Alternativa: mandar o Lively para a NVIDIA (libera a Intel, mas
+  acorda a placa dedicada e gasta mais energia, só na tomada).
