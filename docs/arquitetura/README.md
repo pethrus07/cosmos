@@ -11,7 +11,17 @@ cada uma numa notação padrão:
 
 Papel de parede do notebook no Lively Wallpaper: espaço nas cores da RYZE, capas de álbum girando, a música que está tocando no centro (álbum novo entra na coleção) e o dia do Pedro (commits, Sinapse, Hermes) virando estrelas.
 
-![Cosmos · papel de parede animado](./cosmos.svg)
+### Quem usa e para quê (UML)
+
+![Casos de uso · Cosmos · papel de parede animado](./cosmos-1-casos-de-uso.svg)
+
+### Uma música começa a tocar (BPMN 2.0)
+
+![Processo · Cosmos · papel de parede animado](./cosmos-2-processo.svg)
+
+### Arquitetura (C4, containers)
+
+![Arquitetura · Cosmos · papel de parede animado](./cosmos-3-arquitetura.svg)
 
 Editável: [`cosmos.excalidraw`](./cosmos.excalidraw), abre em [excalidraw.com](https://excalidraw.com) ou no VS Code com a extensão Excalidraw.
 
