@@ -12,7 +12,16 @@ const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const PROJETOS = path.join(process.env.USERPROFILE, "Projetos");
 const VAULT = path.join(PROJETOS, "sinapse");
 const HERMES = path.join(PROJETOS, "hermes", "dados", "propostas.jsonl");
-const AUTORES = ["oliveiramichaelpedro@gmail.com", "ti@parresia.com"];
+// E-mails de autor que contam como "meus": um por linha em %LOCALAPPDATA%\cosmos\autores.txt (fora do
+// repositório); sem o arquivo, vale o user.email do git.
+const ARQ_AUTORES = path.join(process.env.LOCALAPPDATA || "", "cosmos", "autores.txt");
+const AUTORES = (() => {
+  try {
+    const lista = fs.readFileSync(ARQ_AUTORES, "utf8").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    if (lista.length) return lista;
+  } catch {}
+  try { return [execFileSync("git", ["config", "user.email"], { encoding: "utf8", windowsHide: true }).trim()].filter(Boolean); } catch { return []; }
+})();
 
 const meiaNoite = new Date();
 meiaNoite.setHours(0, 0, 0, 0);

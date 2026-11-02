@@ -67,4 +67,4 @@ the hooks above are the visual check.
 
 ## License
 
-All rights reserved. Covers and artist photos come from Deezer and Spotify and are not kept in git.
+MIT. See [LICENSE](LICENSE). Covers and artist photos come from Deezer and Spotify and are not kept in git.

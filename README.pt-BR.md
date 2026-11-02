@@ -67,4 +67,4 @@ os ganchos acima são a conferência visual.
 
 ## Licença
 
-Todos os direitos reservados. As capas e fotos de artistas vêm do Deezer e do Spotify e não entram no git.
+MIT. Veja [LICENSE](LICENSE). As capas e fotos de artistas vêm do Deezer e do Spotify e não entram no git.
