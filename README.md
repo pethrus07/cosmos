@@ -1,61 +1,70 @@
 # Cosmos
 
-Papel de parede animado do Pedro, rodando no [Lively Wallpaper](https://github.com/rocksdanister/lively).
-O reflexo da cabeça dele: espaço e vazio, música, empresa, dados, matemática e algoritmos.
+English · [Português](README.pt-BR.md)
 
-- **Céu em cenas:** cada cena tem duas nebulosas com textura de ruído (filamentos, falhas escuras, veios
-  dourados), estrelas distantes, um planeta (cor, anel e luz sorteados), galáxias espirais e estrelas
-  brilhantes que acendem e se apagam. A cada 4 a 7 min uma cena nova aparece enquanto a anterior se desfaz.
-  Por cima: estrelas vindo na direção da tela, estrela cadente dourada e um cometa raro.
-- **Música:** capas e fotos de artistas soltas, poucas e espalhadas, com entradas e giros variados; o meio
-  fica para o que passa (capas atravessando, capas vindo do fundo, a RYZE girando como moeda) e para a
-  música que está tocando, com borda dourada.
-- **Música no ar:** com `--audio`, o Lively manda o espectro do som; as estrelas aceleram com o volume, o
-  céu respira no grave, as capas e os brilhos pulsam na batida, o atrator e o Fourier correm mais rápido.
-- **Hora do dia:** madrugada (azul profundo, mais vazio, céu troca a cada 8–12 min), manhã (frio e aberto),
-  tarde (dourado), noite (roxo). Paletas preferidas e um tom por cima, trocado em 90 s.
-- **O seu dia virando céu (`constelacoes.js`):** commits de hoje (branco-azulados), notas do Sinapse
-  (violeta) e Hermes (enviada = ponto dourado, respondida = estrela com raios, aceita = estrela grande
-  permanente e uma supernova na primeira vez). Sem texto e sem número. Coletor: `ferramentas/dados-do-dia.mjs`,
-  tarefa `Cosmos-Dados` a cada 10 min.
-- **Versos (`versos.js`):** trechos curtos de poesia e literatura (Pessoa e heterônimos, Dostoiévski,
-  Machado, Augusto dos Anjos, Florbela, Camões, Kafka, Baudelaire, Rilke…) que se escrevem palavra por
-  palavra, ficam e se apagam. Por cima das capas, porque são para ler.
-- **Matemática (`matematica.js`):** fórmulas que se escrevem e se apagam, um atrator caótico (Lorenz,
-  Aizawa, Thomas, Halvorsen) desenhando a trajetória ao vivo, e o símbolo da RYZE traçado por série de
-  Fourier no centro de tempos em tempos.
+Pedro's animated wallpaper, running on [Lively Wallpaper](https://github.com/rocksdanister/lively). A reflection of
+what is on his mind: space and emptiness, music, his company, data, mathematics and algorithms.
 
-## De onde vêm as capas
+Status: done and in daily use (2026-11). HTML, CSS and JavaScript with no build step; collectors in Node.js; two
+scheduled tasks (`Cosmos-Dados` every 10 min, `Cosmos-Spotify` every 3 h).
 
-Giram juntas, sem repetir:
+- **Sky in scenes:** each scene has two nebulae with noise texture (filaments, dark lanes, golden veins), distant
+  stars, a planet (random colour, ring and light), spiral galaxies and bright stars that fade in and out. Every 4 to
+  7 min a new scene appears while the previous one dissolves. On top: stars flying toward the screen, a golden
+  shooting star and a rare comet.
+- **Music:** album covers and artist photos, few and spread out, with varied entrances and spins; the centre is kept
+  for what passes through (covers crossing, covers coming from the back, the RYZE logo spinning like a coin) and for
+  the song that is playing, with a golden border.
+- **Music in the air:** with `--audio`, Lively sends the sound spectrum; stars speed up with the volume, the sky
+  breathes with the bass, covers and highlights pulse on the beat, the attractor and the Fourier drawing run faster.
+- **Time of day:** late night (deep blue, emptier, sky changes every 8 to 12 min), morning (cold and open), afternoon
+  (golden), night (purple). Preferred palettes plus a tint on top, changed every 90 s.
+- **Your day turning into sky (`constelacoes.js`):** today's commits (blue-white), Sinapse notes (violet) and Hermes
+  proposals (sent = golden dot, answered = star with rays, accepted = large permanent star and a supernova the first
+  time). No text and no numbers. Collector: `ferramentas/dados-do-dia.mjs`, task `Cosmos-Dados` every 10 min.
+- **Verses (`versos.js`):** short excerpts of poetry and literature (Pessoa and his heteronyms, Dostoevsky, Machado,
+  Augusto dos Anjos, Florbela, Camões, Kafka, Baudelaire, Rilke...) that write themselves word by word, stay and
+  fade. They sit above the covers, because they are meant to be read.
+- **Mathematics (`matematica.js`):** formulas that write and erase themselves, a chaotic attractor (Lorenz, Aizawa,
+  Thomas, Halvorsen) drawing its trajectory live, and the RYZE symbol traced by a Fourier series in the centre from
+  time to time.
 
-- **Fixos:** os álbuns que o Pedro escolheu, em `albuns.json` → `node ferramentas/baixar-capas.mjs`
-  (Deezer, sem login). Aparecem sempre, estejam ou não no Spotify.
-- **Spotify:** álbuns das faixas mais ouvidas de sempre e das recentes, mais as fotos dos 20 artistas mais
-  ouvidos. Conectar uma vez: `node ferramentas/conectar-spotify.mjs` (janela guiada; o Pedro entra na conta,
-  aceita os termos e autoriza). A tarefa `Cosmos-Spotify` (`agendar/instalar-tarefa.ps1`) roda
-  `node ferramentas/spotify.mjs atualizar` a cada 3 h; o fundo relê `capas/spotify.js` a cada 30 min.
-  Token em `%LOCALAPPDATA%\cosmos\spotify.json`, fora daqui.
-- **Música tocando:** o Lively passa a faixa que o Windows vê tocando; álbum novo entra na coleção.
+## Where the covers come from
 
-## Onde está ligado
+They rotate together, without repeating:
 
-- A pasta entra na biblioteca do Lively por junção:
-  `%LOCALAPPDATA%\Lively Wallpaper\Library\wallpapers\cosmos` → esta pasta. Mudou aqui, recarregue o
-  fundo no Lively.
-- Aplicado nas duas telas (notebook e LG). Pausa em jogo/tela cheia, na bateria e na economia de energia.
-- Papel de parede comum e tela de bloqueio: `quadros/notebook.png`, gerado por
-  `node ferramentas/quadro-estatico.mjs` (usa o Playwright do Hermes).
+- **Fixed:** the albums Pedro picked, in `albuns.json`, downloaded by `node ferramentas/baixar-capas.mjs` (Deezer, no
+  login). They always show up, whether or not they are on Spotify.
+- **Spotify:** albums of the all-time and recent top tracks, plus photos of the 20 most played artists. Connect once:
+  `node ferramentas/conectar-spotify.mjs` (guided window; Pedro logs in, accepts the terms and authorises). The
+  `Cosmos-Spotify` task (`agendar/instalar-tarefa.ps1`) runs `node ferramentas/spotify.mjs atualizar` every 3 h;
+  the wallpaper rereads `capas/spotify.js` every 30 min. Token in `%LOCALAPPDATA%\cosmos\spotify.json`, outside
+  this folder.
+- **Now playing:** Lively passes on the track Windows sees playing; a new album joins the collection.
 
-Testes no navegador: `index.html#teste` (faixa da coleção), `#teste-novo` (faixa de fora), `#cenas`
-(expõe `cosmosNovaCena()` para forçar a troca de céu), `#fourier` (RYZE por Fourier logo de início),
-`#planetas` (expõe `cosmosPlanetas()` com as variações de planeta). Ganchos combinam: `#versos,supernova,fase-tarde`.
+## Where it is wired
+
+- The folder joins the Lively library through a junction:
+  `%LOCALAPPDATA%\Lively Wallpaper\Library\wallpapers\cosmos` points to this folder. After a change here, reload
+  the wallpaper in Lively.
+- Applied to both screens (laptop and external monitor). Pauses during games or full screen, on battery and in
+  power saving.
+- Regular wallpaper and lock screen: `quadros/notebook.png`, generated by `node ferramentas/quadro-estatico.mjs`
+  (uses Hermes' Playwright).
+
+Browser checks: `index.html#teste` (track from the collection), `#teste-novo` (track from outside), `#cenas`
+(exposes `cosmosNovaCena()` to force a sky change), `#fourier` (RYZE by Fourier right away), `#planetas` (exposes
+`cosmosPlanetas()` with the planet variations). Hooks combine: `#versos,supernova,fase-tarde`.
 
 ## Roadmap
 
-- **Modo leve na tela do notebook** (anotado em 23/10/2026; o Pedro não sente gargalo, então fica para
-  quando precisar). Medido no XPS: o Cosmos usa ~48% da GPU Intel integrada, ~7% da CPU e ~1,5 GB, quase
-  tudo vindo da tela do notebook (3456×2160); o Lively zera o consumo quando a tela está coberta por janela
-  maximizada, em jogo/tela cheia e na bateria. A ideia: nessa tela, 15 quadros/s e menos capas, mantendo o
-  LG igual (deve cair perto da metade). Alternativa: mandar o Lively para a NVIDIA (libera a Intel, mas
-  acorda a placa dedicada e gasta mais energia, só na tomada).
+In [docs/ROADMAP.md](docs/ROADMAP.md) (Portuguese). The next item is a light mode on the laptop screen.
+
+## Architecture
+
+[docs/arquitetura/](docs/arquitetura/README.md): use cases, process and containers. There are no automated tests:
+the hooks above are the visual check.
+
+## License
+
+All rights reserved. Covers and artist photos come from Deezer and Spotify and are not kept in git.
