@@ -5,8 +5,11 @@
 Papel de parede animado do Pedro, rodando no [Lively Wallpaper](https://github.com/rocksdanister/lively).
 O reflexo da cabeça dele: espaço e vazio, música, empresa, dados, matemática e algoritmos.
 
-Status: pronto e em uso diário (11/2026). HTML, CSS e JavaScript sem build; coletores em Node.js; duas tarefas
-agendadas (`Cosmos-Dados` a cada 10 min, `Cosmos-Spotify` a cada 3 h).
+## Status
+
+Pronto e em uso diário (11/2026).
+
+## O que faz
 
 - **Céu em cenas:** cada cena tem duas nebulosas com textura de ruído (filamentos, falhas escuras, veios
   dourados), estrelas distantes, um planeta (cor, anel e luz sorteados), galáxias espirais e estrelas
@@ -43,27 +46,34 @@ Giram juntas, sem repetir:
   Token em `%LOCALAPPDATA%\cosmos\spotify.json`, fora daqui.
 - **Música tocando:** o Lively passa a faixa que o Windows vê tocando; álbum novo entra na coleção.
 
-## Onde está ligado
+## Stack
+
+HTML, CSS e JavaScript sem build; coletores em Node.js; duas tarefas agendadas (`Cosmos-Dados` a cada 10 min,
+`Cosmos-Spotify` a cada 3 h).
+
+## Rodar localmente
 
 - A pasta entra na biblioteca do Lively por junção:
   `%LOCALAPPDATA%\Lively Wallpaper\Library\wallpapers\cosmos` aponta para esta pasta. Mudou aqui, recarregue o
   fundo no Lively.
-- Aplicado nas duas telas (notebook e LG). Pausa em jogo/tela cheia, na bateria e na economia de energia.
+- Aplicado nas duas telas (notebook e monitor externo). Pausa em jogo/tela cheia, na bateria e na economia de energia.
 - Papel de parede comum e tela de bloqueio: `quadros/notebook.png`, gerado por
   `node ferramentas/quadro-estatico.mjs` (usa o Playwright do Hermes).
 
-Testes no navegador: `index.html#teste` (faixa da coleção), `#teste-novo` (faixa de fora), `#cenas`
-(expõe `cosmosNovaCena()` para forçar a troca de céu), `#fourier` (RYZE por Fourier logo de início),
-`#planetas` (expõe `cosmosPlanetas()` com as variações de planeta). Ganchos combinam: `#versos,supernova,fase-tarde`.
+## Testes
+
+Não há testes automatizados. Os ganchos no navegador são a conferência visual: `index.html#teste` (faixa da
+coleção), `#teste-novo` (faixa de fora), `#cenas` (expõe `cosmosNovaCena()` para forçar a troca de céu),
+`#fourier` (RYZE por Fourier logo de início), `#planetas` (expõe `cosmosPlanetas()` com as variações de planeta).
+Ganchos combinam: `#versos,supernova,fase-tarde`.
+
+## Arquitetura
+
+[docs/arquitetura/](docs/arquitetura/README.md): casos de uso, processo e containers.
 
 ## Roadmap
 
 Em [docs/ROADMAP.md](docs/ROADMAP.md). O próximo item é o modo leve na tela do notebook.
-
-## Arquitetura
-
-[docs/arquitetura/](docs/arquitetura/README.md): casos de uso, processo e containers. Não há testes automatizados:
-os ganchos acima são a conferência visual.
 
 ## Licença
 
